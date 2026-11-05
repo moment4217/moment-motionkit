@@ -785,12 +785,12 @@ function mk_grabFrame(json) {
 var MK_FRAME_N = 0;
 function mkExportFrame() {
     var errs = [], sep = /win/i.test(String($.os)) ? "\\" : "/";
-    var native = String(Folder.temp.fsName), slash = native.replace(/\\/g, "/");
+    var natDir = String(Folder.temp.fsName), slash = natDir.replace(/\\/g, "/");
     MK_FRAME_N = (MK_FRAME_N + 1) % 1000;
     var base = "mmk_frame_" + (new Date().getTime()) + "_" + MK_FRAME_N;
     var tries = [
-        { dir: native, s: sep, ext: "", how: "native" },
-        { dir: native, s: sep, ext: ".png", how: "native.png" },
+        { dir: natDir, s: sep, ext: "", how: "native" },
+        { dir: natDir, s: sep, ext: ".png", how: "native.png" },
         { dir: slash, s: "/", ext: ".png", how: "slash.png" },
         { dir: slash, s: "/", ext: "", how: "slash" }
     ];
@@ -810,6 +810,16 @@ function mkExportFrame() {
         errs.push(tr.how + ": no file");
     }
     return { path: "", how: "", errs: errs };
+}
+/* 쓴 캡처 한 장 지우기 (임시 폴더의 mmk_frame_ 파일만) */
+function mk_delFrame(json) {
+    try {
+        var o = mkParse(json), p = String(o.path || "");
+        if (!/mmk_frame_[^\\\/]*$/.test(p)) return mkErr("badpath");
+        var f = new File(p), ok = false;
+        if (f.exists) { try { ok = f.remove(); } catch (e1) { ok = false; } }
+        return mkJson({ ok: true, removed: ok ? 1 : 0 });
+    } catch (e) { return mkErr("ex", String(e)); }
 }
 /* 캡처 임시 파일 정리 */
 function mk_cleanTmp() {

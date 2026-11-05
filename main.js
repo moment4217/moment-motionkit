@@ -5,7 +5,7 @@
   var cep = window.__adobe_cep__;
   var FORCE_MINI = !!window.MK_FORCE_MINI;          // mini.html (별도 미니 패널)
   var MAIN_ID = 'com.moment.motionkit.main';
-  var RUN = window.MK_RUNNING || { v: '1.6.2', src: 'bundled' };
+  var RUN = window.MK_RUNNING || { v: '1.6.3', src: 'bundled' };
   var VERSION = 'v' + RUN.v;
   var SRCNAME = { online: '방금 자동 업데이트됨', cache: '저장된 업데이트', bundled: '설치본' };
 
@@ -108,7 +108,7 @@
     }
     return got;
   }
-  function save() { persistLocal(); clearTimeout(saveTimer); saveTimer = setTimeout(flush, 200); }
+  function save() { persistLocal(); clearTimeout(saveTimer); saveTimer = setTimeout(flush, 200); try { paintSum(); } catch (e) {} }
   async function flush() {
     if (flushing) { flushAgain = true; return; }
     flushing = true;
@@ -161,6 +161,7 @@
       document.querySelectorAll('.pane').forEach(function (p) { p.classList.toggle('on', p.id === 'tab-' + b.dataset.tab); });
       if (b.dataset.tab === 'curve') drawCurve();
       if (b.dataset.tab === 'fx') openFxTab();
+      btnFold.style.visibility = b.dataset.tab === 'motion' ? '' : 'hidden';
     });
   });
 
@@ -368,6 +369,30 @@
   seg(document.getElementById('optOutside'), null, null,
     function () { return opts.outside ? '1' : '0'; }, function (v) { opts.outside = v === '1'; renderGrid(); renderMini(); });
 
+  /* ---------- 설정 접기 + 한 줄 요약 (위쪽은 고정, 아래 효과 목록만 스크롤) ---------- */
+  var motionOpts = document.getElementById('motionOpts'), optSum = document.getElementById('optSum'), btnFold = document.getElementById('btnFold');
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  var FOLD_KEY = 'mmk.fold' + (FORCE_MINI ? '.mini' : '');
+  function setFold(on) {
+    motionOpts.classList.toggle('folded', on);
+    btnFold.textContent = on ? '설정 ▾' : '설정 ▴';
+    btnFold.title = on ? '설정 펼치기' : '설정 접기 (효과 목록을 넓게)';
+    lsSet(FOLD_KEY, on ? '1' : '0');
+  }
+  btnFold.addEventListener('click', function () { setFold(!motionOpts.classList.contains('folded')); });
+  optSum.addEventListener('click', function () { setFold(false); });
+  function paintSum() {
+    var pv = opts.pivot || [0.5, 0.5], parts = [];
+    parts.push('강도 <b>' + (opts.size || 3) + '</b>');
+    parts.push(opts.dur > 0 ? '길이 <b>' + fmtSec(opts.dur) + '</b>' : '속도 <b>' + (opts.speed || 3) + '</b>');
+    parts.push('<b>' + (opts.anchor === 'start' ? '클립 시작' : '재생헤드') + '</b>');
+    if (opts.outside) parts.push('<b>밖에서 꽂기</b>');
+    parts.push('기준점 <b>' + pivLabel.textContent.replace(/^직접 지정 /, '') + '</b>');
+    parts.push('블러 <b>' + (opts.blur ? '켬' : '끔') + '</b>');
+    optSum.innerHTML = parts.join(' · ') + ' <i>▾ 설정</i>';
+  }
+
   /* ---------- 기준점 (확대·회전 중심) ---------- */
   var pivGrid = document.getElementById('pivGrid'), pivLabel = document.getElementById('pivLabel');
   var PIV = [[0.25, 0.25, '왼쪽 위'], [0.5, 0.25, '위'], [0.75, 0.25, '오른쪽 위'], [0.25, 0.5, '왼쪽'], [0.5, 0.5, '가운데'], [0.75, 0.5, '오른쪽'],
@@ -382,6 +407,7 @@
     var pv = opts.pivot || [0.5, 0.5], hit = null;
     pivGrid.querySelectorAll('button').forEach(function (b, i) { var on = samePt(PIV[i], pv); b.classList.toggle('on', on); if (on) hit = PIV[i][2]; });
     pivLabel.textContent = hit || ('직접 지정 (' + Math.round(pv[0] * 100) + '%, ' + Math.round(pv[1] * 100) + '%)');
+    try { paintSum(); } catch (e) {}
   }
   /* 화면 캡처 → 클릭으로 지정 */
   var pickBox = document.getElementById('pickBox'), pickImg = document.getElementById('pickImg'), pickPic = document.getElementById('pickPic'), pickDot = document.getElementById('pickDot');
@@ -441,13 +467,13 @@
   var picking = false;
   pickImg.addEventListener('mousedown', function (e) {
     if (e.button !== 0) return;
-    e.preventDefault(); picking = true; pickImg.classList.add('drag'); pickAt(e);
+    e.preventDefault(); stopPreview(); picking = true; pickImg.classList.add('drag'); pickAt(e);
   });
   document.addEventListener('mousemove', function (e) { if (picking) pickAt(e); });
   document.addEventListener('mouseup', function () {
     if (!picking) return;
     picking = false; pickImg.classList.remove('drag');
-    save(); applyPivot();
+    save(); applyPivot(); playPreview();
   });
   /* 캡처가 안 될 때도 점은 옮길 수 있게: 시퀀스 비율의 빈 화면 + 3분할 선 */
   function blankFrame(w, h) {
@@ -461,6 +487,33 @@
     g.fillText('화면 캡처를 못 해서 빈 화면이에요', W / 2, H / 2 + 28);
     return c.toDataURL('image/png');
   }
+  /* 불러온 캡처를 메모리(data URL)로 옮겨두고, 파일은 바로 지운다 */
+  function toDataUrl(im) {
+    if (/^data:/.test(im.src)) return im.src;
+    try {
+      var c = document.createElement('canvas'); c.width = im.naturalWidth || im.width; c.height = im.naturalHeight || im.height;
+      c.getContext('2d').drawImage(im, 0, 0); return c.toDataURL('image/png');
+    } catch (e) { return null; }
+  }
+  var keepFrame = null;     /* 메모리로 못 옮긴 캡처 → 창을 닫을 때 지움 */
+  function dropFrame(path) { if (path) call('mk_delFrame', { path: path }); }
+  /* 미리보기: 이 점을 중심으로 줌되는 모습 */
+  var pickAnim = null;
+  function playPreview() {
+    var pv = opts.pivot || [0.5, 0.5];
+    if (pickAnim) { try { pickAnim.cancel(); } catch (e) {} pickAnim = null; }
+    pickPic.style.transformOrigin = (pv[0] * 100) + '% ' + (pv[1] * 100) + '%';
+    if (!pickPic.animate) return;
+    pickAnim = pickPic.animate([
+      { transform: 'scale(1) rotate(0deg)', offset: 0 },
+      { transform: 'scale(1.35) rotate(0deg)', offset: 0.38 },
+      { transform: 'scale(1.35) rotate(0deg)', offset: 0.55 },
+      { transform: 'scale(1.18) rotate(-6deg)', offset: 0.75 },
+      { transform: 'scale(1) rotate(0deg)', offset: 1 }
+    ], { duration: 1700, easing: 'ease-in-out' });
+  }
+  function stopPreview() { if (pickAnim) { try { pickAnim.cancel(); } catch (e) {} pickAnim = null; } }
+  document.getElementById('pickPlay').addEventListener('click', playPreview);
   var picking0 = false;
   document.getElementById('btnPick').addEventListener('click', async function () {
     if (picking0) return;
@@ -468,21 +521,31 @@
     try {
       status('화면을 캡처하는 중…');
       var r = await call('mk_grabFrame', {});
-      var im = r.ok ? await loadFrame(r.path) : null, src;
-      if (im) src = im.src;
-      else {
+      var im = r.ok ? await loadFrame(r.path) : null, src = null;
+      if (im) {
+        src = toDataUrl(im);
+        if (src) dropFrame(r.path);          /* 쓰고 바로 삭제 */
+        else { src = im.src; keepFrame = r.path; }
+      } else {
+        if (r.ok) dropFrame(r.path);
         var c = await getCtx(false);
         src = blankFrame(c && c.w, c && c.h);
         lastGrabErr = r.ok ? 'load' : (r.err + (r.msg ? ' (' + r.msg + ')' : ''));
       }
       pickPic.src = src; snapX = snapY = false; pickBox.classList.add('show'); placeDot();
-      pickBox.scrollIntoView({ block: 'nearest' });
-      status(im ? '점을 드래그하거나 클릭하세요 · 놓는 순간 선택 클립에 반영돼요'
+      status(im ? '점을 드래그하거나 클릭하세요 · 놓으면 그 점을 중심으로 줌되는 모습을 보여줘요'
                 : '화면 캡처가 안 돼서 빈 화면에 표시했어요 · 점은 그대로 옮길 수 있어요 (진단 정보 복사로 알려주세요)', im ? 'ok' : 'warn');
     } finally { picking0 = false; }
   });
-  document.getElementById('pickCenter').addEventListener('click', function () { opts.pivot = [0.5, 0.5]; snapX = snapY = true; placeDot(); paintPivot(); save(); applyPivot(); });
-  document.getElementById('pickDone').addEventListener('click', function () { pickBox.classList.remove('show'); call('mk_cleanTmp'); status('✓ 기준점: ' + pivLabel.textContent, 'ok'); });
+  function closePick() {
+    stopPreview(); pickBox.classList.remove('show'); pickPic.removeAttribute('src');
+    if (keepFrame) { dropFrame(keepFrame); keepFrame = null; }
+    call('mk_cleanTmp');
+  }
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && pickBox.classList.contains('show')) closePick(); });
+  pickBox.addEventListener('mousedown', function (e) { if (e.target === pickBox) closePick(); });
+  document.getElementById('pickCenter').addEventListener('click', function () { opts.pivot = [0.5, 0.5]; snapX = snapY = true; placeDot(); paintPivot(); save(); applyPivot(); playPreview(); });
+  document.getElementById('pickDone').addEventListener('click', function () { closePick(); status('✓ 기준점: ' + pivLabel.textContent, 'ok'); });
 
   /* ---------- 글자 영역 자동 측정 ---------- */
   var areaCache = {}, lastGrabErr = '';
@@ -500,6 +563,7 @@
     if (r.ok) {
       var im = await loadFrame(r.path);
       if (im) area = bboxOf(im);
+      dropFrame(r.path);                     /* 잰 다음 바로 삭제 */
     }
     areaCache[key] = area;
     return area;
@@ -684,13 +748,18 @@
 
   /* ---------- 카테고리 + 프리셋 카드 ---------- */
   var catsEl = document.getElementById('cats'), gridEl = document.getElementById('grid'), typingOpts = document.getElementById('typingOpts');
+  /* 카테고리 줄은 한 줄 고정 → 마우스 휠로 옆으로 넘기기 */
+  catsEl.addEventListener('wheel', function (e) {
+    if (catsEl.scrollWidth <= catsEl.clientWidth) return;
+    e.preventDefault(); catsEl.scrollLeft += (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY);
+  }, { passive: false });
   function renderCats() {
     catsEl.innerHTML = '';
     [{ id: 'fav', label: '★' }, { id: 'all', label: '전체' }].concat(MK.CATS).forEach(function (c) {
       var b = document.createElement('button'); b.textContent = c.label; b.dataset.v = c.id;
       if (c.id === 'fav') b.title = '즐겨찾기';
       b.classList.toggle('on', opts.cat === c.id);
-      b.addEventListener('click', function () { opts.cat = c.id; save(); renderCats(); renderGrid(); });
+      b.addEventListener('click', function () { opts.cat = c.id; save(); renderCats(); renderGrid(); var ms = document.getElementById('mScroll'); if (ms) ms.scrollTop = 0; });
       catsEl.appendChild(b);
     });
     typingOpts.classList.toggle('show', opts.cat === 'caption');
@@ -1000,7 +1069,8 @@
   document.getElementById('btnDiag').addEventListener('click', async function () {
     status('진단 중…');
     var r = await call('mk_diag');
-    var head = 'Moment_Motion Kit ' + VERSION + (lastGrabErr ? '\nlast capture error: ' + lastGrabErr : '') + '\n';
+    var head = 'Moment_Motion Kit ' + VERSION + ' (' + RUN.src + ')' + (lastGrabErr ? '\nlast capture error: ' + lastGrabErr : '') + (connErr ? '\nconnection: ' + connErr : '') +
+      '\npanel: ' + navigator.userAgent.replace(/^.*?(Chrome\/[\d.]+).*$/, '$1') + ' · ' + (navigator.platform || '') + '\n';
     diagText.value = head + (r.ok ? r.text : '진단 실패: ' + errText(r));
     diagBox.classList.add('show');
     diagText.focus(); diagText.select();
@@ -1143,11 +1213,47 @@
     wasMini = null; layout();
   }
   refreshAll();
+  setFold(lsGet(FOLD_KEY) === '1'); paintSum();
   sync(true);
-  /* 연결 확인: 하단에 준비 상태 표시 */
-  call('mk_ping').then(function (r) {
-    if (r.ok) status((RUN.src === 'online' ? '✓ 새 버전으로 자동 업데이트됐어요 · ' : '준비 완료 · ') + 'Moment_Motion Kit ' + VERSION + ' (' + (SRCNAME[RUN.src] || RUN.src) + ')' + (r.version ? ' · Premiere ' + r.version : ''), 'ok');
-    else if (cep) status('프리미어와 연결되지 않았어요 — 프리미어를 재시작해 보세요 (' + VERSION + ')', 'err');
+  /* ---------- 연결 확인 (재시도 → 프리미어 쪽 스크립트 다시 불러오기) ---------- */
+  var connErr = '';
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function rawEval(script) {
+    return new Promise(function (resolve) { try { cep.evalScript(script, function (r) { resolve(String(r)); }); } catch (e) { resolve('throw ' + e); } });
+  }
+  function extPath() {
+    try {
+      var raw = String(cep.getSystemPath('extension') || '');
+      raw = /^file:\/\/\/[A-Za-z]:/.test(raw) ? raw.replace(/^file:\/\/\//, '') : raw.replace(/^file:\/\//, '');
+      return decodeURI(raw);
+    } catch (e) { return ''; }
+  }
+  async function connect() {
+    var r = null, i;
+    for (i = 0; i < 4; i++) {
+      r = await call('mk_ping');
+      if (r.ok) return r;
+      status('프리미어와 연결하는 중… (' + (i + 1) + ')');
+      await wait(600 + i * 500);
+    }
+    if (!cep) return r;
+    /* 스크립트가 안 불러와졌거나 문법 오류 → 직접 다시 불러온다 */
+    var how = [], res;
+    if (window.MK_HOST) { res = await rawEval(window.MK_HOST); how.push('update:' + res); r = await call('mk_ping'); if (r.ok) return r; }
+    var ep = extPath();
+    if (ep) {
+      var lit = JSON.stringify(ep + '/jsx/host.jsx').replace(/[\u0080-\uffff]/g, function (c) { return '\\u' + ('000' + c.charCodeAt(0).toString(16)).slice(-4); });
+      res = await rawEval('try { $.evalFile(' + lit + '); "loaded" } catch (e) { "err " + e.line + ": " + e }');
+      how.push('file:' + res); r = await call('mk_ping'); if (r.ok) return r;
+    }
+    connErr = 'ping: ' + (r.err || '') + ' ' + (r.msg || '') + ' | reload ' + how.join(' / ') + ' | ext ' + ep;
+    return r;
+  }
+  connect().then(function (r) {
+    if (r && r.ok) {
+      status((RUN.src === 'online' ? '✓ 새 버전으로 자동 업데이트됐어요 · ' : '준비 완료 · ') + 'Moment_Motion Kit ' + VERSION + ' (' + (SRCNAME[RUN.src] || RUN.src) + ')' + (r.version ? ' · Premiere ' + r.version : ''), 'ok');
+      call('mk_cleanTmp');                     /* 지난번에 남은 캡처 파일 정리 */
+    } else if (cep) status('프리미어와 연결되지 않았어요 — 프리미어를 재시작해 보세요 · 계속되면 "진단 정보 복사"를 눌러 알려주세요 (' + VERSION + ')', 'err');
   });
   if (!cep && !window.MK_MOCK) status('미리보기 모드 — 프리미어 안에서 열면 적용돼요', 'warn');
 })();

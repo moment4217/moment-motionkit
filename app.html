@@ -17,74 +17,43 @@
 </div>
 
 <main id="full">
-  <!-- 상단 바: 선택 클립 수 + 지우기 -->
+  <!-- 상단 바: 선택 클립 수 + 설정 접기 + 지우기 -->
   <div class="topbar">
     <span class="selChip" id="selChip">선택 0개</span>
+    <button class="ghost foldBtn" id="btnFold" title="설정 접기/펼치기">설정 ▴</button>
     <button class="ghost clearTop" id="btnClear" title="선택 클립에 MotionKit 이 넣은 효과를 지워요">⌫ 선택 클립의 모션 효과 지우기</button>
   </div>
-  <div class="tipBox" id="tipBox">
-    <b>💡 즐겨찾기 사용법</b>
-    <ol>
-      <li>카드의 ☆ 를 누르거나, 변형 버튼을 <b>우클릭</b>하면 즐겨찾기에 들어가요.</li>
-      <li>오른쪽 위 <b>▁</b>(작게 접기)나 <b>Mini 패널</b>에서 즐겨찾기만 바로 쓸 수 있어요.</li>
-      <li>미니 창에서 버튼을 <b>끌어서</b> 순서를 바꿀 수 있어요.</li>
-    </ol>
-    <button class="link" id="tipOff">다시 보지 않기</button>
-  </div>
-  <!-- 기준점 지정 (화면 캡처) -->
-  <div class="pickBox" id="pickBox">
-    <div class="pickHead"><b>기준점 바꾸기</b><small>점을 드래그하거나 클릭하세요 · 선택한 클립의 확대·회전·이동이 이 점을 중심으로 바뀌어요 · 효과를 넣기 전에 찍어도 돼요</small></div>
-    <div class="pickWrap"><div class="pickImg" id="pickImg"><img id="pickPic" alt="" draggable="false"><i class="pickGuide v" id="pickGv"></i><i class="pickGuide h" id="pickGh"></i><span class="pickDot" id="pickDot"></span></div></div>
-    <div class="pickBtns"><span class="pickRead" id="pickRead"></span><button class="ghost" id="pickCenter">가운데로</button><button class="primary" id="pickDone">완료</button></div>
-  </div>
-  <!-- 모션 탭 -->
+  <!-- 모션 탭: 위(설정·카테고리)는 고정, 아래 효과 목록만 스크롤 -->
   <section id="tab-motion" class="pane on">
-    <div class="opts">
-      <div class="row">
-        <label>강도</label>
-        <div class="seg" id="optSize"></div>
-      </div>
-      <div class="row">
-        <label>길이</label>
-        <div class="durCtl" id="fullDur"></div>
-      </div>
-      <div class="row" id="speedRow">
-        <label>속도</label>
-        <div class="seg" id="optSpeed"></div>
-      </div>
-      <div class="row" id="zoomRow">
-        <label>천천히 줌</label>
-        <div class="seg" id="optZoomRate"></div>
-      </div>
-      <div class="row">
-        <label>시작점</label>
-        <div class="seg" id="optAnchor">
-          <button data-v="playhead">재생헤드</button>
-          <button data-v="start">클립 시작</button>
+    <div class="mTop">
+      <div class="opts compact" id="motionOpts">
+        <button class="optSum" id="optSum" title="눌러서 설정 펼치기"></button>
+        <div class="optGrid">
+          <div class="row"><label>강도</label><div class="seg" id="optSize"></div></div>
+          <div class="row" id="speedRow"><label>속도</label><div class="seg" id="optSpeed"></div></div>
+          <div class="row span"><label>길이</label><div class="durCtl" id="fullDur"></div></div>
+          <div class="row"><label>시작</label>
+            <div class="seg" id="optAnchor"><button data-v="playhead">재생헤드</button><button data-v="start">클립 시작</button></div></div>
+          <div class="row"><label>등장</label>
+            <div class="seg" id="optOutside"><button data-v="0">기본</button><button data-v="1" title="프레임 밖에서 팍 꽂기">밖에서 꽂기</button></div></div>
+          <div class="row pivotRow"><label>기준점</label><div class="pivGrid" id="pivGrid"></div>
+            <button class="chipA" id="btnPick" title="지금 화면을 캡처해서 기준점을 직접 찍어요">화면에서 지정</button><span class="hint" id="pivLabel">가운데</span></div>
+          <div class="row"><label>블러</label><button class="toggle" id="optBlur" aria-label="모션블러"><i></i></button><span class="hint" title="빠른 움직임에 자동으로 모션블러">자동 모션블러</span></div>
+          <div class="row span" id="zoomRow"><label>천천히 줌</label><div class="seg" id="optZoomRate"></div></div>
         </div>
       </div>
-      <div class="row">
-        <label>등장</label>
-        <div class="seg" id="optOutside">
-          <button data-v="0">기본</button>
-          <button data-v="1">프레임 밖에서 꽂기</button>
-        </div>
-      </div>
-      <div class="row pivotRow">
-        <label>기준점</label>
-        <div class="pivGrid" id="pivGrid"></div>
-        <button class="chipA" id="btnPick">화면에서 지정</button>
-        <span class="hint" id="pivLabel">가운데</span>
-      </div>
-      <div class="row">
-        <label>모션블러</label>
-        <button class="toggle" id="optBlur" aria-label="모션블러"><i></i></button>
-        <span class="hint">빠른 움직임에 자동 블러</span>
-      </div>
+      <div class="cats" id="cats"></div>
     </div>
-
-    <div class="cats" id="cats"></div>
-
+    <div class="mScroll" id="mScroll">
+    <div class="tipBox" id="tipBox">
+      <b>💡 즐겨찾기 사용법</b>
+      <ol>
+        <li>카드의 ☆ 를 누르거나, 변형 버튼을 <b>우클릭</b>하면 즐겨찾기에 들어가요.</li>
+        <li>오른쪽 위 <b>▁</b>(작게 접기)나 <b>Mini 패널</b>에서 즐겨찾기만 바로 쓸 수 있어요.</li>
+        <li>미니 창에서 버튼을 <b>끌어서</b> 순서를 바꿀 수 있어요.</li>
+      </ol>
+      <button class="link" id="tipOff">다시 보지 않기</button>
+    </div>
     <!-- 타이핑 설정: 모션자막 탭에서만 보임 -->
     <div class="opts typing" id="typingOpts">
       <div class="head"><span>타이핑 · 색 차오르기 설정</span><small id="typingAuto"></small></div>
@@ -132,6 +101,7 @@
     <div class="diag" id="diagBox">
       <textarea id="diagText" readonly></textarea>
       <button class="ghost" id="diagClose">닫기</button>
+    </div>
     </div>
   </section>
 
@@ -203,5 +173,13 @@
     <p class="note">이름을 누르면 선택한 클립에 바로 들어가요. ☆ 로 즐겨찾기하면 위와 미니 창에 나와요.<br>오디오 효과(리버브 등)는 타임라인에서 <b>오디오 클립</b>을 선택하고 누르세요.</p>
   </section>
 </main>
+<!-- 기준점 지정 화면 (화면 캡처) -->
+<div class="pickBox" id="pickBox">
+  <div class="pickPanel">
+    <div class="pickHead"><b>기준점 바꾸기</b><small>점을 드래그하거나 클릭하세요 · 놓으면 그 점을 중심으로 줌되는 모습을 미리 보여줘요 · 선택한 클립에 이미 넣은 모션도 바로 바뀌어요</small></div>
+    <div class="pickWrap"><div class="pickImg" id="pickImg"><div class="pickView"><img id="pickPic" alt="" draggable="false"></div><i class="pickGuide v" id="pickGv"></i><i class="pickGuide h" id="pickGh"></i><span class="pickDot" id="pickDot"></span></div></div>
+    <div class="pickBtns"><span class="pickRead" id="pickRead"></span><button class="ghost" id="pickPlay" title="이 점을 중심으로 줌되는 모습 다시 보기">▶ 미리보기</button><button class="ghost" id="pickCenter">가운데로</button><button class="primary" id="pickDone">완료</button></div>
+  </div>
+</div>
 
 <footer id="status">클립을 선택하고 모션을 누르세요</footer>
