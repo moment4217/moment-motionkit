@@ -184,19 +184,35 @@
    * build  : 클립마다 동적으로 만드는 프리셋 (타이핑)
    */
   /* ---------------- 색 차오르기 (복제 레이어용) ----------------
-   * 위에 복사한 자막을 색조(Tint)로 한 가지 색으로 칠하고, 자르기로 아래→위 등 한 방향씩 드러낸다.
+   * 원본 자막을 위 트랙에 복제하고, 위 복제본에만 쓴다. (0202 방식: 색조 + 자르기, 자막 위치에 맞춰 차오름)
+   *  직선: 색조(흰 글자 → 고른 색, 검은 테두리는 그대로) + 자르기로 한 방향씩 드러냄
+   *  곡선: 경사(단색 판) + 자르기 + 파도 비틀기(물결치는 수면) + 트랙 매트 키(원본 글자의 밝은 부분만)
    * area = 자동 측정한 글자 범위 {L,R,T,B} (%), 없으면 화면 전체
    */
   var FILL_COLORS = { yellow: [255, 255, 214, 0], red: [255, 255, 60, 60], sky: [255, 70, 190, 255], pink: [255, 255, 110, 190],
     green: [255, 60, 220, 120], white: [255, 255, 255, 255], black: [255, 20, 20, 20] };
-  function fillSpec(dir, area, color) {
-    var a = area || { L: 0, R: 100, T: 0, B: 100 }, c = { color: color || FILL_COLORS.yellow }, tr = {}, st = { Left: 0, Top: 0, Right: 0, Bottom: 0 };
-    var N = 18;
+  var FILL_N = 80;          // 0202 와 같은 길이 (30fps 기준 약 2.7초) · 길이 슬라이더로 바뀜
+  var DARK = [255, 0, 0, 0];
+  function fillSpec(dir, area, color, ctx) {
+    var a = area || { L: 0, R: 100, T: 0, B: 100 }, col = color || FILL_COLORS.yellow, N = FILL_N, tr = {}, st = { Left: 0, Top: 0, Right: 0, Bottom: 0 };
+    if (dir === 'wave') {
+      var H = (ctx && ctx.h) || 1080, W = (ctx && ctx.w) || 1920;
+      var hPct = Math.max(1, Math.min(4, (a.B - a.T) * 0.1));            // 물결 높이 = 글자 높이의 10% (화면 %)
+      var hPx = Math.round(hPct / 100 * H), wPx = Math.max(40, Math.round((a.R - a.L) / 100 * W * 0.22));
+      tr.Top = [[0, Math.min(100, a.B + hPct + 0.5), 'inout'], [N, Math.max(0, a.T - hPct - 1), 'lin'], [N + 1, 0]];
+      delete st.Top;
+      return { below: 'need', tracks: {}, fx: [
+        { fx: 'ramp', set: { StartColor: { color: col }, EndColor: { color: col }, Blend: 0 } },
+        { fx: 'crop', fxOnly: true, tracks: tr, set: st },
+        { fx: 'wwarp', set: { Height: hPx, Width: wPx, Direction: 90, Speed: 1.2 } },
+        { fx: 'tmk', set: { Matte: 'below', Composite: 'luma' } }
+      ] };
+    }
     if (dir === 'up') { tr.Top = [[0, a.B + 0.5, 'inout'], [N, Math.max(0, a.T - 0.5), 'lin'], [N + 1, 0]]; delete st.Top; }
     else if (dir === 'down') { tr.Bottom = [[0, 100 - a.T + 0.5, 'inout'], [N, Math.max(0, 100 - a.B - 0.5), 'lin'], [N + 1, 0]]; delete st.Bottom; }
     else { tr.Right = [[0, 100 - a.L + 0.5, 'inout'], [N, Math.max(0, 100 - a.R - 0.5), 'lin'], [N + 1, 0]]; delete st.Right; }
-    return { tracks: {}, fx: [
-      { fx: 'tint', set: { Black: c, White: c, Amount: 100 } },
+    return { below: 'check', tracks: {}, fx: [
+      { fx: 'tint', set: { Black: { color: col === FILL_COLORS.black ? col : DARK }, White: { color: col }, Amount: 100 } },
       { fx: 'crop', tracks: tr, set: st }
     ] };
   }
@@ -434,12 +450,14 @@
       build: function (clip, opts, ctx) { var ty = opts.typing || {}; return typingSpec(typingText(clip, ty), ctx, ty, false, clip.area); } },
     { id: 'typingerase', cat: 'caption', group: 'typing', v: '지우기', name: '타이핑 지우기', desc: '끝에서 한 글자씩 지워짐', mode: 'out', typing: true, needsArea: true,
       build: function (clip, opts, ctx) { var ty = opts.typing || {}; return typingSpec(typingText(clip, ty), ctx, ty, true, clip.area); } },
-    { id: 'fill_up', cat: 'caption', group: 'fill', v: '아래→위', name: '색 차오르기 (아래→위)', desc: '아래에서 위로 색이 차오름 · 복제 트랙용', mode: 'in', dup: true, needsArea: true,
-      build: function (clip, opts) { return fillSpec('up', opts.autoArea === false ? null : clip.area, FILL_COLORS[opts.fillColor] || FILL_COLORS.yellow); } },
+    { id: 'fill_up', cat: 'caption', group: 'fill', v: '직선', name: '색 차오르기 (직선)', desc: '아래에서 위로 색이 차오름 · 복제 트랙용', mode: 'in', dup: true, needsArea: true,
+      build: function (clip, opts, ctx) { return fillSpec('up', opts.autoArea === false ? null : clip.area, FILL_COLORS[opts.fillColor] || FILL_COLORS.yellow, ctx); } },
+    { id: 'fill_wave', cat: 'caption', group: 'fill', v: '곡선', name: '색 차오르기 (곡선)', desc: '물결치며 색이 차오름 · 복제 트랙용', mode: 'in', dup: true, needsArea: true,
+      build: function (clip, opts, ctx) { return fillSpec('wave', opts.autoArea === false ? null : clip.area, FILL_COLORS[opts.fillColor] || FILL_COLORS.yellow, ctx); } },
     { id: 'fill_lr', cat: 'caption', group: 'fill', v: '왼→오', name: '색 차오르기 (왼→오)', desc: '왼쪽에서 오른쪽으로 색이 참 · 복제 트랙용', mode: 'in', dup: true, needsArea: true,
-      build: function (clip, opts) { return fillSpec('lr', opts.autoArea === false ? null : clip.area, FILL_COLORS[opts.fillColor] || FILL_COLORS.yellow); } },
+      build: function (clip, opts, ctx) { return fillSpec('lr', opts.autoArea === false ? null : clip.area, FILL_COLORS[opts.fillColor] || FILL_COLORS.yellow, ctx); } },
     { id: 'fill_down', cat: 'caption', group: 'fill', v: '위→아래', name: '색 차오르기 (위→아래)', desc: '위에서 아래로 색이 내려옴 · 복제 트랙용', mode: 'in', dup: true, needsArea: true,
-      build: function (clip, opts) { return fillSpec('down', opts.autoArea === false ? null : clip.area, FILL_COLORS[opts.fillColor] || FILL_COLORS.yellow); } },
+      build: function (clip, opts, ctx) { return fillSpec('down', opts.autoArea === false ? null : clip.area, FILL_COLORS[opts.fillColor] || FILL_COLORS.yellow, ctx); } },
     { id: 'blurin', cat: 'caption', group: 'blur', v: 'in', name: '블러 인', desc: '흐릿하게 나타나며 선명', mode: 'in',
       tracks: { op: [[0, 0, 'out'], [8, 100]], scale: [[0, 106, 'out'], [12, 100]] },
       fx: [{ fx: 'gblur', tracks: { Blurriness: [[0, 36, 'out'], [12, 0]] } }] },
@@ -529,7 +547,9 @@
     bc:    { Brightness: 0, Contrast: 1 },
     proc:  { Brightness: 0, Contrast: 1, Hue: 2, Saturation: 3 },
     chroma: { Red: 1, Green: 2, Blue: 3 },
-    post:  { Rate: 0 }
+    post:  { Rate: 0 },
+    ramp:  { StartColor: 1, EndColor: 3, Blend: 6 },
+    tmk:   { Matte: 0, Composite: 1, Reverse: 2 }
   };
   var FX_SCALED = { 'gblur.Blurriness': 1, 'turb.Amount': 1, 'dblur.Length': 1, 'wwarp.Height': 1, 'bc.Brightness': 2, 'tint.Amount': 1, 'chroma.Red': 1, 'chroma.Blue': 1 };   // 강도에 비례 (1 = 0 이상, 2 = 음수 허용)
 
@@ -724,7 +744,9 @@
           var en = place(e.tracks[name], fxValueFn(e.fx, name, k), 3, e.fx + '.' + name);
           if (en) { en.i = map[name]; en.n = name; params.push(en); }
         }
-        return { fx: e.fx, params: params };
+        var fo = { fx: e.fx, params: params };
+        if (e.fxOnly) fo.fxOnly = true;
+        return fo;
       });
       var tr = spec.tracks || {};
       plans.push({
@@ -732,6 +754,7 @@
         shutter: opts.blur && spec.blur ? spec.blur : 0,
         uniform: !(tr.sw || tr.sh),
         pivot: opts.pivot && opts.pivot.length === 2 ? [opts.pivot[0], opts.pivot[1]] : [0.5, 0.5],
+        below: spec.below || '',
         props: props,
         fx: fx
       });
@@ -787,7 +810,7 @@
     var p = plan.props, frames = [];
     var cl = fxParam(plan, 'crop', 0), ct = fxParam(plan, 'crop', 1), cr = fxParam(plan, 'crop', 2), cb = fxParam(plan, 'crop', 3);
     var gb = fxParam(plan, 'gblur', 0), db = fxParam(plan, 'dblur', 1), tb = fxParam(plan, 'wwarp', 1) || fxParam(plan, 'turb', 1);
-    var tn = fxParam(plan, 'tint', 2), br = fxParam(plan, 'bc', 0), hu = fxParam(plan, 'proc', 2), sa = fxParam(plan, 'proc', 3);
+    var tn = fxParam(plan, 'tint', 2) || (fxParam(plan, 'ramp', 1) ? { value: 100 } : null), br = fxParam(plan, 'bc', 0), hu = fxParam(plan, 'proc', 2), sa = fxParam(plan, 'proc', 3);
     for (var f = 0; f < n; f++) {
       var s = valueAt(p.scale, f, 100);
       frames.push({

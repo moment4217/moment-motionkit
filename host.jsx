@@ -17,7 +17,8 @@ var MK_SPECS = {
     crop: { /* 자르기 */
         names: ["Crop", "\uC790\uB974\uAE30", "Crop (Legacy)", "\uC790\uB974\uAE30(\uB808\uAC70\uC2DC)", "\uC790\uB974\uAE30 (\uB808\uAC70\uC2DC)"],
         scan: [/crop/i, /\uC790\uB974\uAE30/, /\uD06C\uB86D/],
-        ok: function (m) { return /crop/i.test(m); }
+        not: /round|\uB465\uADFC/i,     /* 새 프리미어의 "둥근 자르기"는 다른 효과 */
+        ok: function (m) { return /crop/i.test(m) && !/round/i.test(m); }
     },
     gblur: { /* 가우시안 흐림 */
         names: ["Gaussian Blur", "Gaussian Blur (Legacy)", "\uAC00\uC6B0\uC2DC\uC548 \uD750\uB9BC", "\uAC00\uC6B0\uC2DC\uC548 \uD750\uB9BC(\uB808\uAC70\uC2DC)"],
@@ -30,8 +31,8 @@ var MK_SPECS = {
         ok: function (m) { return /turbulent/i.test(m); }
     },
     wwarp: { /* 물결 비틀기 — 글리치 띠 */
-        names: ["Wave Warp", "\uBB3C\uACB0 \uBE44\uD2C0\uAE30"],
-        scan: [/wave ?warp/i, /\uBB3C\uACB0/],
+        names: ["Wave Warp", "\uBB3C\uACB0 \uBE44\uD2C0\uAE30", "\uD30C\uB3C4 \uBE44\uD2C0\uAE30"],
+        scan: [/wave ?warp/i, /\uBB3C\uACB0 \uBE44\uD2C0/, /\uD30C\uB3C4 \uBE44\uD2C0/],
         ok: function (m) { return /wave ?warp/i.test(m); }
     },
     lwipe: { /* 선형 닦아내기 — 자르기가 없을 때 대신 */
@@ -42,6 +43,7 @@ var MK_SPECS = {
     tint: { /* 색조 — 버럭 빨간 화면 */
         names: ["Tint", "\uC0C9\uC870"],
         scan: [/^tint$/i, /^\uC0C9\uC870$/],
+        not: /\uCC44\uB3C4|saturation|\uBD84\uB9AC/i,
         ok: function (m) { return /tint/i.test(m); }
     },
     bc: { /* 밝기 및 대비 — 빛나며 등장 */
@@ -56,7 +58,8 @@ var MK_SPECS = {
     },
     chroma: { /* VR 색수차 — RGB 분리 */
         names: ["VR Chromatic Aberrations", "VR \uC0C9\uC218\uCC28"],
-        scan: [/chromatic aberration/i, /\uC0C9\uC218\uCC28/],
+        scan: [/vr chromatic aberration/i, /VR \uC0C9\uC218\uCC28/],
+        not: /^chromatic aberration$/i,   /* 새 기본 "Chromatic Aberration" 은 속성이 달라서 제외 */
         ok: function (m) { return /chromatic/i.test(m); }
     },
     post: { /* 시간 포스터화 — 끊기는 프레임 */
@@ -68,6 +71,16 @@ var MK_SPECS = {
         names: ["Directional Blur", "\uBC29\uD5A5 \uD750\uB9BC", "\uBC29\uD5A5\uC131 \uD750\uB9BC"],
         scan: [/^directional blur/i, /\uBC29\uD5A5.*\uD750\uB9BC/],
         ok: function (m) { return /motion blur|directional/i.test(m); }
+    },
+    ramp: { /* 경사(그레이디언트) — 곡선 차오르기의 단색 판 */
+        names: ["Ramp", "\uACBD\uC0AC", "\uADF8\uB808\uC774\uB514\uC5B8\uD2B8 \uB7A8\uD504"],
+        scan: [/^ramp$/i, /^\uACBD\uC0AC$/, /^\uADF8\uB808\uC774\uB514\uC5B8\uD2B8 \uB7A8\uD504$/],
+        ok: function (m) { return /ramp/i.test(m); }
+    },
+    tmk: { /* 트랙 매트 키 — 곡선 차오르기를 글자 모양으로 */
+        names: ["Track Matte Key", "\uD2B8\uB799 \uB9E4\uD2B8 \uD0A4"],
+        scan: [/track matte/i, /\uD2B8\uB799 \uB9E4\uD2B8/],
+        ok: function (m) { return /track ?matte/i.test(m); }
     }
 };
 /* 추가 효과 속성의 표시 이름 (영문 / 한글). 이름으로 먼저 찾고, 없으면 번호로 */
@@ -76,9 +89,11 @@ var MK_PNAMES = {
     gblur: { Blurriness: ["Blurriness", "\uD750\uB9BC \uC815\uB3C4", "\uD750\uB9BC"] },
     turb:  { Amount: ["Amount", "\uC591"], Size: ["Size", "\uD06C\uAE30"], Complexity: ["Complexity", "\uBCF5\uC7A1\uC131", "\uBCF5\uC7A1\uB3C4"], Evolution: ["Evolution", "\uC9C4\uD654", "\uC804\uAC1C"] },
     dblur: { Direction: ["Direction", "\uBC29\uD5A5"], Length: ["Blur Length", "\uD750\uB9BC \uAE38\uC774"] },
-    wwarp: { Type: ["Wave Type", "\uD30C\uD615 \uC720\uD615", "\uBB3C\uACB0 \uC720\uD615"], Height: ["Wave Height", "\uD30C\uD615 \uB192\uC774", "\uBB3C\uACB0 \uB192\uC774"],
-             Width: ["Wave Width", "\uD30C\uD615 \uD3ED", "\uBB3C\uACB0 \uD3ED", "\uD30C\uD615 \uB108\uBE44"], Direction: ["Direction", "\uBC29\uD5A5"],
-             Speed: ["Wave Speed", "\uD30C\uD615 \uC18D\uB3C4", "\uBB3C\uACB0 \uC18D\uB3C4"], Phase: ["Phase", "\uC704\uC0C1"] },
+    wwarp: { Type: [/wave type/i, /(\uD30C\uD615|\uBB3C\uACB0|\uD30C\uB3C4) ?\uC720\uD615/], Height: [/wave height/i, /(\uD30C\uD615|\uBB3C\uACB0|\uD30C\uB3C4) ?\uB192\uC774/],
+             Width: [/wave width/i, /(\uD30C\uD615|\uBB3C\uACB0|\uD30C\uB3C4) ?(\uD3ED|\uB108\uBE44)/], Direction: [/^direction$/i, /^\uBC29\uD5A5$/],
+             Speed: [/wave speed/i, /(\uD30C\uD615|\uBB3C\uACB0|\uD30C\uB3C4) ?\uC18D\uB3C4/], Phase: [/^phase$/i, /^\uC704\uC0C1$/] },
+    ramp:  { StartColor: [/start color/i, /\uC2DC\uC791 \uC0C9/], EndColor: [/end color/i, /(\uB05D|\uC885\uB8CC) \uC0C9/], Blend: [/blend with original/i, /\uC6D0\uBCF8\uACFC \uD63C\uD569/] },
+    tmk:   { Matte: [/^matte$/i, /^\uB9E4\uD2B8$/], Composite: [/composite/i, /\uD569\uC131/], Reverse: [/^reverse$/i, /^\uBC18\uC804$/] },
     tint:  { Black: ["Map Black To", "\uAC80\uC815\uC744 \uB2E4\uC74C\uC73C\uB85C \uB9E4\uD551", "\uAC80\uC815 \uB9E4\uD551"], White: ["Map White To", "\uD770\uC0C9\uC744 \uB2E4\uC74C\uC73C\uB85C \uB9E4\uD551", "\uD770\uC0C9 \uB9E4\uD551"], Amount: ["Amount to Tint", "\uC0C9\uC870 \uC591"] },
     bc:    { Brightness: ["Brightness", "\uBC1D\uAE30"], Contrast: ["Contrast", "\uB300\uBE44"] },
     proc:  { Brightness: ["Brightness", "\uBC1D\uAE30", "\uBA85\uB3C4"], Contrast: ["Contrast", "\uB300\uBE44"], Hue: ["Hue", "\uC0C9\uC870"], Saturation: ["Saturation", "\uCC44\uB3C4"] },
@@ -124,10 +139,38 @@ function mkClipId(clip, t, c) {
     try { if (clip.nodeId) return String(clip.nodeId); } catch (e) {}
     return t + ":" + c + ":" + clip.start.ticks;
 }
-function mkScanName(spec, name) {
-    for (var j = 0; j < spec.scan.length; j++) if (spec.scan[j].test(name)) return true;
-    return false;
+/* 효과 이름 쪼개기: 새 프리미어는 "색조 (Tint)", "가우시안 흐림(레거시) (Gaussian Blur (Legacy))" 처럼
+ * 한글 (영문) 으로 이름을 준다 → [전체, 한글, 영문] */
+function mkNameParts(n) {
+    n = String(n);
+    var out = [n], s = n.replace(/\s+$/, "");
+    if (s.charAt(s.length - 1) === ")") {
+        var depth = 0, i;
+        for (i = s.length - 1; i >= 0; i--) {
+            var ch = s.charAt(i);
+            if (ch === ")") depth++;
+            else if (ch === "(" && --depth === 0) break;
+        }
+        if (i > 0) {
+            var a = s.substring(0, i).replace(/\s+$/, ""), b = s.substring(i + 1, s.length - 1).replace(/^\s+|\s+$/g, "");
+            if (a) out.push(a);
+            if (b) out.push(b);
+        }
+    }
+    return out;
 }
+/* 이름이 이 효과인지: 0 = 이름이 딱 맞음, 1 = 비슷함(scan), -1 = 아님 */
+function mkNameRank(spec, name) {
+    var parts = mkNameParts(name), i, j, best = -1;
+    for (i = 0; i < parts.length; i++) if (spec.not && spec.not.test(parts[i])) return -1;
+    for (i = 0; i < parts.length; i++) {
+        var low = parts[i].toLowerCase();
+        for (j = 0; j < spec.names.length; j++) if (low === String(spec.names[j]).toLowerCase()) return 0;
+        for (j = 0; j < spec.scan.length; j++) if (spec.scan[j].test(parts[i])) best = 1;
+    }
+    return best;
+}
+function mkScanName(spec, name) { return mkNameRank(spec, name) >= 0; }
 
 function mkSelected(seq) {
     var out = [];
@@ -170,6 +213,7 @@ function mkIsSpec(comp, spec) {
     try { m = String(comp.matchName); } catch (e) {}
     try { d = String(comp.displayName); } catch (e2) {}
     if (m === "AE.ADBE Motion" || m === "AE.ADBE Opacity") return false;
+    if (d && spec.not) { var dp = mkNameParts(d); for (var i = 0; i < dp.length; i++) if (spec.not.test(dp[i])) return false; }
     return spec.ok(m) || mkScanName(spec, d);
 }
 function mkQeTicks(it) {
@@ -189,18 +233,22 @@ function mkQeItem(qs, t, clip, tpf) {
     }
     return bd <= tpf ? best : null;
 }
+/* 효과 목록에서 이름 후보를 고른다: 딱 맞는 이름 → 비슷한 이름 → 기본 이름들 순 */
 function mkCandidates(spec) {
-    var names = [], i, j;
-    for (i = 0; i < spec.names.length; i++) names.push(spec.names[i]);
+    var exact = [], near = [], names = [], i;
     try {
         var list = qe.project.getVideoEffectList();
         list = (typeof list === "string") ? list.split(",") : list;
-        for (i = 0; i < spec.scan.length; i++)
-            for (j = 0; j < list.length; j++) {
-                var n = String(list[j]);
-                if (spec.scan[i].test(n) && !/^VR /.test(n) && !mkIn(names, n)) names.push(n);
-            }
+        for (i = 0; i < list.length; i++) {
+            var n = String(list[i]), r = mkNameRank(spec, n);
+            if (r === 0) exact.push(n); else if (r === 1) near.push(n);
+        }
     } catch (e) {}
+    /* 레거시가 아닌 쪽을 먼저 */
+    near.sort(function (a, b) { return (/legacy|\uB808\uAC70\uC2DC/i.test(a) ? 1 : 0) - (/legacy|\uB808\uAC70\uC2DC/i.test(b) ? 1 : 0); });
+    for (i = 0; i < exact.length; i++) if (!mkIn(names, exact[i])) names.push(exact[i]);
+    for (i = 0; i < near.length; i++) if (!mkIn(names, near[i])) names.push(near[i]);
+    for (i = 0; i < spec.names.length; i++) if (!mkIn(names, spec.names[i])) names.push(spec.names[i]);
     return names;
 }
 function mkMatchNames(clip) {
@@ -307,12 +355,12 @@ function mkGetter(props, fx) {
 var MK_SIDES = {
     Left: /left|\uC67C\uCABD/i, Top: /top|\uC704\uCABD|^\uC704$/i, Right: /right|\uC624\uB978\uCABD/i, Bottom: /bottom|\uC544\uB798\uCABD|^\uC544\uB798$/i
 };
-function mkCropTarget(seq, qs, t, c, tpf) {
+function mkCropTarget(seq, qs, t, c, tpf, fxOnly) {
     var clip = seq.videoTracks[t].clips[c];
     var ci = mkFindFx(clip, MK_SPECS.crop);
     if (ci >= 0) return { get: mkGetter(clip.components[ci].properties, "crop"), via: "fx" };
-    /* 모션 안의 기본 자르기 (새 프리미어) */
-    for (var i = 0; i < clip.components.numItems; i++) {
+    /* 모션 안의 기본 자르기 (새 프리미어) — 효과 순서가 중요할 땐(곡선 차오르기) 쓰지 않음 */
+    for (var i = 0; i < clip.components.numItems && !fxOnly; i++) {
         var comp = clip.components[i];
         if (String(comp.matchName) !== "AE.ADBE Motion") continue;
         var found = {}, n = 0, zone = false;
@@ -363,6 +411,48 @@ function mkReadText(clip) {
     return "";
 }
 
+/* 아래 트랙에서 같은 시간에 놓인 원본(복제 전) 클립 찾기 → 트랙 번호, 없으면 -1 */
+function mkFindBelow(seq, t, clip, tpf) {
+    var s0 = Number(clip.start.ticks), e0 = Number(clip.end.ticks), nm = "", loose = -1;
+    try { nm = String(clip.name); } catch (e) { nm = ""; }
+    for (var tt = t - 1; tt >= 0; tt--) {
+        var tr = seq.videoTracks[tt];
+        for (var c = 0; c < tr.clips.numItems; c++) {
+            var o = tr.clips[c], s1 = Number(o.start.ticks), e1 = Number(o.end.ticks);
+            if (e1 <= s0 || s1 >= e0) continue;
+            if (Math.abs(s1 - s0) <= tpf * 2 && Math.abs(e1 - e0) <= tpf * 2) return tt;     /* 같은 자리 복제 */
+            var on = "";
+            try { on = String(o.name); } catch (e2) { on = ""; }
+            if (loose < 0 && nm && on === nm) loose = tt;                                     /* 길이만 다른 같은 자막 */
+        }
+    }
+    return loose;
+}
+/* 트랙 매트 키: 매트 = 원본 트랙, 합성 = 매트 루마(흰 글자만, 검은 테두리는 그대로) */
+function mkWriteMatte(seq, qs, t, c, tpf, bt, params) {
+    var clip = seq.videoTracks[t].clips[c];
+    var old = mkFindFx(clip, MK_SPECS.tmk);
+    if (old >= 0 && qs) {   /* 기본값을 기준으로 번호를 맞추려고 새로 넣는다 */
+        var qi = mkQeItem(qs, t, clip, tpf);
+        try { if (qi) qi.getComponentAt(old).remove(); } catch (e0) {}
+    }
+    var en = mkEnsure(seq, qs, t, c, tpf, MK_SPECS.tmk);
+    if (en.ci < 0) return false;
+    var get = mkGetter(seq.videoTracks[t].clips[c].components[en.ci].properties, "tmk");
+    for (var i = 0; i < params.length; i++) {
+        var pr = params[i], prm = get(pr.n, pr.i);
+        if (!prm) continue;
+        var v0 = 0;
+        try { v0 = prm.getValue(); } catch (e1) { v0 = 0; }
+        if (typeof v0 !== "number") v0 = (v0 === true) ? 1 : 0;
+        try { prm.setTimeVarying(false); } catch (e2) {}
+        if (pr.n === "Matte") mkSet(prm, v0 + bt + 1);              /* 기본 "없음" 다음이 비디오 1, 2, … */
+        else if (pr.n === "Composite") mkSet(prm, pr.value === "luma" ? v0 + 1 : v0);
+        else if (pr.value !== undefined) mkSet(prm, pr.value);
+    }
+    return true;
+}
+
 /* plans: [{ t, c, shutter, uniform, props:{ prop:{keys}|{value} }, fx:[{ fx, params:[{ i, keys|value }] }] }] */
 function mk_apply(json) {
     try {
@@ -377,14 +467,23 @@ function mk_apply(json) {
             if (!seq.videoTracks[pl.t].clips[pl.c]) { failed.push("clip"); continue; }
             var clip0 = seq.videoTracks[pl.t].clips[pl.c];
             var inP = Number(clip0.inPoint.ticks), spd = mkSpeed(clip0);
+            /* 복제본용 효과: 아래 트랙의 원본 확인 */
+            var bt = pl.below ? mkFindBelow(seq, pl.t, clip0, tpf) : -1;
+            if (pl.below === "need" && bt < 0) { failed.push("nobelow"); continue; }
+            if (pl.below === "check" && bt < 0 && !mkIn(notes, "nodup")) notes.push("nodup");
 
             /* (1) 추가 효과 먼저 — 자르기/흐림/난류/방향 흐림 */
             var fxl = pl.fx || [];
             for (var x = 0; x < fxl.length; x++) {
                 var fxid = fxl[x].fx, params = fxl[x].params, getter = null;
                 if (!MK_SPECS[fxid]) continue;
+                if (fxid === "tmk") {
+                    if (!mkWriteMatte(seq, qs, pl.t, pl.c, tpf, bt, params)) { if (!mkIn(missing, "tmk")) missing.push("tmk"); }
+                    else written++;
+                    continue;
+                }
                 if (fxid === "crop") {
-                    var ct = mkCropTarget(seq, qs, pl.t, pl.c, tpf);
+                    var ct = mkCropTarget(seq, qs, pl.t, pl.c, tpf, !!fxl[x].fxOnly);
                     if (ct) { getter = ct.get; if (ct.via !== "fx" && !mkIn(notes, ct.via)) notes.push(ct.via); }
                     else {
                         /* 자르기를 못 쓰면 선형 닦아내기로 같은 움직임 */
@@ -529,13 +628,18 @@ function mk_clear() {
         if (!seq) return mkErr("noseq");
         var tpf = Number(seq.timebase), qs = null;
         try { app.enableQE(); qs = qe.project.getActiveSequence(); } catch (e) { qs = null; }
-        var sel = mkSelected(seq), removed = 0, reset = 0, kinds = ["tf", "crop", "gblur", "turb", "dblur", "wwarp", "lwipe", "tint", "bc", "proc", "chroma", "post"];
+        var sel = mkSelected(seq), removed = 0, reset = 0, kinds = ["tf", "crop", "gblur", "turb", "dblur", "wwarp", "lwipe", "tint", "bc", "proc", "chroma", "post", "ramp", "tmk"],
+            FILLKIND = { tint: 1, ramp: 1, tmk: 1, wwarp: 1 };
         for (var s = 0; s < sel.length; s++) {
             var clip = sel[s].clip;
             var qi = qs ? mkQeItem(qs, sel[s].t, clip, tpf) : null;
             var qnames = [];
             if (qi) { try { for (var q = 0; q < qi.numComponents; q++) qnames.push(String(qi.getComponentAt(q).name)); } catch (e2) { qnames = []; } }
             var kill = [];          /* 지울 QE 번호들 */
+            /* 색 차오르기(자르기 키 + 색조/경사/매트)는 키가 없는 색 효과까지 같이 지운다 */
+            var cropKeyed = false;
+            for (var ck = 0; ck < clip.components.numItems; ck++)
+                if (MK_SPECS.crop.ok(String(clip.components[ck].matchName)) && mkHasKeys(clip.components[ck])) cropKeyed = true;
             for (var k = 0; k < kinds.length; k++) {
                 var spec = MK_SPECS[kinds[k]], dom = [], qe2 = [], i;
                 for (i = 0; i < clip.components.numItems; i++) if (spec.ok(String(clip.components[i].matchName))) dom.push(i);
@@ -543,7 +647,7 @@ function mk_clear() {
                 for (i = 0; i < qnames.length; i++) if (mkScanName(spec, qnames[i])) qe2.push(i);
                 if (qi && qe2.length === dom.length) {
                     for (i = 0; i < dom.length; i++) {
-                        if (kinds[k] === "tf" || mkHasKeys(clip.components[dom[i]])) kill.push(qe2[i]);
+                        if (kinds[k] === "tf" || mkHasKeys(clip.components[dom[i]]) || (cropKeyed && FILLKIND[kinds[k]])) kill.push(qe2[i]);
                     }
                 } else if (kinds[k] === "tf") {
                     /* 안전하게 못 지우면 값만 기본으로 되돌린다 */
@@ -591,6 +695,46 @@ function mk_typingFrame(json) {
             n++;
         }
         return mkJson({ ok: true, done: n, clips: sel.length, nofx: nofx });
+    } catch (e) { return mkErr("ex", String(e)); }
+}
+
+/* ---------- 기준점 바꾸기: 이미 넣은 모션에도 바로 반영 ----------
+ * json: { pivot: [x, y] (0~1) }  변형 효과의 기준점을 옮기고, 위치도 같은 만큼 옮겨서 화면이 튀지 않게 한다.
+ */
+function mk_setPivot(json) {
+    try {
+        var o = mkParse(json), pv = o.pivot;
+        var seq = app.project.activeSequence;
+        if (!seq) return mkErr("noseq");
+        var sel = mkSelected(seq), n = 0;
+        for (var s = 0; s < sel.length; s++) {
+            var clip = sel[s].clip, ci = mkFindFx(clip, MK_SPECS.tf);
+            if (ci < 0) continue;
+            var props = clip.components[ci].properties;
+            if (props.numItems < 11) continue;
+            var an = props[0], pos = props[MK_TF.pos], old = null;
+            try { if (!an.isTimeVarying()) old = an.getValue(); } catch (e0) { old = null; }
+            if (!(old instanceof Array) || old.length < 2) continue;
+            var dx = pv[0] - old[0], dy = pv[1] - old[1];
+            if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) { n++; continue; }
+            mkSet(an, [pv[0], pv[1]]);
+            var tv = false;
+            try { tv = pos.isTimeVarying(); } catch (e1) { tv = false; }
+            if (tv) {
+                var keys = null;
+                try { keys = pos.getKeys(); } catch (e2) { keys = null; }
+                for (var k = 0; keys && k < keys.length; k++) {
+                    try {
+                        var v = pos.getValueAtKey(keys[k]);
+                        pos.setValueAtKey(keys[k], [v[0] + dx, v[1] + dy], k === keys.length - 1 ? 1 : 0);
+                    } catch (e3) {}
+                }
+            } else {
+                try { var pv0 = pos.getValue(); mkSet(pos, [pv0[0] + dx, pv0[1] + dy]); } catch (e4) {}
+            }
+            n++;
+        }
+        return mkJson({ ok: true, done: n, clips: sel.length });
     } catch (e) { return mkErr("ex", String(e)); }
 }
 

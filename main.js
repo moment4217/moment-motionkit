@@ -5,7 +5,7 @@
   var cep = window.__adobe_cep__;
   var FORCE_MINI = !!window.MK_FORCE_MINI;          // mini.html (별도 미니 패널)
   var MAIN_ID = 'com.moment.motionkit.main';
-  var RUN = window.MK_RUNNING || { v: '1.6.0', src: 'bundled' };
+  var RUN = window.MK_RUNNING || { v: '1.6.1', src: 'bundled' };
   var VERSION = 'v' + RUN.v;
   var SRCNAME = { online: '방금 자동 업데이트됨', cache: '저장된 업데이트', bundled: '설치본' };
 
@@ -33,10 +33,12 @@
     notf: '변형(Transform) 효과를 추가하지 못했어요',
     noqe: '효과를 추가할 수 없어요 (QE 사용 불가)',
     nocep: '프리미어 프로 안에서 열어주세요',
-    parse: '프리미어 응답을 읽지 못했어요'
+    parse: '프리미어 응답을 읽지 못했어요',
+    nobelow: '아래 트랙에 원본 자막이 없어요'
   };
-  var FXNAME = { chroma: 'VR 색수차', post: '시간 포스터화', tint: '색조', bc: '밝기 및 대비', proc: 'ProcAmp', crop: '자르기', gblur: '가우시안 흐림', turb: '난류 변위', dblur: '방향 흐림', wwarp: '물결 비틀기', lwipe: '선형 닦아내기' };
-  var NOTES = { motion: '모션의 기본 자르기 사용', lwipe: '자르기 대신 선형 닦아내기 사용' };
+  var FXNAME = { chroma: 'VR 색수차', post: '시간 포스터화', tint: '색조', bc: '밝기 및 대비', proc: 'ProcAmp', crop: '자르기', gblur: '가우시안 흐림', turb: '난류 변위', dblur: '방향 흐림', wwarp: '파도 비틀기', lwipe: '선형 닦아내기', ramp: '경사(Ramp)', tmk: '트랙 매트 키' };
+  var NOTES = { motion: '모션의 기본 자르기 사용', lwipe: '자르기 대신 선형 닦아내기 사용', nodup: '' };
+  var DUP_HOW = '자막을 Alt 를 누른 채 바로 위 트랙으로 끌어서 같은 위치에 복제 → 위쪽 복제본을 선택하고 다시 누르세요';
   function errText(r) { return ERR[r.err] || ('오류: ' + (r.msg || r.err)); }
 
   /* ---------- 상태 표시 ---------- */
@@ -372,7 +374,7 @@
     [0.25, 0.75, '왼쪽 아래'], [0.5, 0.75, '아래'], [0.75, 0.75, '오른쪽 아래']];
   PIV.forEach(function (p) {
     var b = document.createElement('button'); b.title = p[2];
-    b.addEventListener('click', function () { opts.pivot = [p[0], p[1]]; paintPivot(); save(); });
+    b.addEventListener('click', function () { opts.pivot = [p[0], p[1]]; paintPivot(); save(); applyPivot(); });
     pivGrid.appendChild(b);
   });
   function samePt(a, b) { return Math.abs(a[0] - b[0]) < 0.005 && Math.abs(a[1] - b[1]) < 0.005; }
@@ -399,22 +401,64 @@
       im.src = src;
     });
   }
-  function placeDot() { var pv = opts.pivot || [0.5, 0.5]; pickDot.style.left = (pv[0] * 100) + '%'; pickDot.style.top = (pv[1] * 100) + '%'; }
+  function pct(v) { return Math.round(v * 100); }
+  var pickRead = document.getElementById('pickRead'), pickGv = document.getElementById('pickGv'), pickGh = document.getElementById('pickGh');
+  var snapX = false, snapY = false;
+  function placeDot() {
+    var pv = opts.pivot || [0.5, 0.5];
+    pickDot.style.left = pickGv.style.left = (pv[0] * 100) + '%';
+    pickDot.style.top = pickGh.style.top = (pv[1] * 100) + '%';
+    pickGv.classList.toggle('snap', snapX); pickGh.classList.toggle('snap', snapY);
+    pickRead.textContent = '가로 ' + pct(pv[0]) + '% · 세로 ' + pct(pv[1]) + '%' + (snapX || snapY ? ' · 맞춤' : '');
+  }
+  /* 기준점을 이미 모션이 들어간 선택 클립에도 바로 반영 */
+  var pivTimer = null;
+  function applyPivot(quiet) {
+    clearTimeout(pivTimer);
+    pivTimer = setTimeout(async function () {
+      var pv = opts.pivot || [0.5, 0.5];
+      var r = await call('mk_setPivot', { pivot: pv });
+      if (quiet) return;
+      var head = '기준점 가로 ' + pct(pv[0]) + '% · 세로 ' + pct(pv[1]) + '%';
+      if (!r.ok) return status(head + ' · 다음에 넣는 효과부터 적용돼요', 'ok');
+      status(head + (r.done ? ' · 선택 클립 ' + r.done + '개에 바로 반영' : ' · 이제 넣는 효과가 이 점을 중심으로 움직여요'), 'ok');
+    }, 120);
+  }
+  /* 화면 캡처 → 점을 끌거나 클릭해서 지정 (가운데·3분할 선에 살짝 붙음, Shift = 안 붙음) */
+  var SNAPS = [1 / 3, 0.5, 2 / 3], SNAP_D = 0.018;
+  function snapTo(v, free) {
+    if (!free) for (var i = 0; i < SNAPS.length; i++) if (Math.abs(v - SNAPS[i]) < SNAP_D) return { v: SNAPS[i], hit: true };
+    return { v: v, hit: false };
+  }
+  function pickAt(e) {
+    var rc = pickImg.getBoundingClientRect();
+    var x = Math.max(0, Math.min(1, (e.clientX - rc.left) / rc.width)), y = Math.max(0, Math.min(1, (e.clientY - rc.top) / rc.height));
+    var sx = snapTo(x, e.shiftKey), sy = snapTo(y, e.shiftKey);
+    snapX = sx.hit; snapY = sy.hit;
+    opts.pivot = [Math.round(sx.v * 1000) / 1000, Math.round(sy.v * 1000) / 1000];
+    placeDot(); paintPivot();
+  }
+  var picking = false;
+  pickImg.addEventListener('mousedown', function (e) {
+    if (e.button !== 0) return;
+    e.preventDefault(); picking = true; pickImg.classList.add('drag'); pickAt(e);
+  });
+  document.addEventListener('mousemove', function (e) { if (picking) pickAt(e); });
+  document.addEventListener('mouseup', function () {
+    if (!picking) return;
+    picking = false; pickImg.classList.remove('drag');
+    save(); applyPivot();
+  });
   document.getElementById('btnPick').addEventListener('click', async function () {
     status('화면을 캡처하는 중…');
     var r = await call('mk_grabFrame', {});
     if (!r.ok) return status(r.err === 'noexport' ? '이 프리미어 버전은 화면 캡처를 지원하지 않아요 → 9칸 버튼으로 골라주세요' : errText(r), 'err');
     var im = await loadFrame(r.path);
     if (!im) return status('캡처한 화면을 불러오지 못했어요 → 9칸 버튼으로 골라주세요', 'err');
-    pickPic.src = im.src; pickBox.classList.add('show'); placeDot();
-    status('화면에서 기준점을 클릭하세요', 'ok');
+    pickPic.src = im.src; snapX = snapY = false; pickBox.classList.add('show'); placeDot();
+    status('점을 드래그하거나 클릭하세요 · 놓는 순간 선택 클립에 반영돼요', 'ok');
   });
-  pickImg.addEventListener('click', function (e) {
-    var rc = pickImg.getBoundingClientRect();
-    opts.pivot = [Math.round((e.clientX - rc.left) / rc.width * 1000) / 1000, Math.round((e.clientY - rc.top) / rc.height * 1000) / 1000];
-    placeDot(); paintPivot(); save();
-  });
-  document.getElementById('pickCenter').addEventListener('click', function () { opts.pivot = [0.5, 0.5]; placeDot(); paintPivot(); save(); });
+  document.getElementById('pickCenter').addEventListener('click', function () { opts.pivot = [0.5, 0.5]; snapX = snapY = true; placeDot(); paintPivot(); save(); applyPivot(); });
   document.getElementById('pickDone').addEventListener('click', function () { pickBox.classList.remove('show'); call('mk_cleanTmp'); status('✓ 기준점: ' + pivLabel.textContent, 'ok'); });
 
   /* ---------- 글자 영역 자동 측정 ---------- */
@@ -832,14 +876,19 @@
         }
         extra += ' · ' + lay.chars.length + '글자(' + SRC[src.from] + '), 폭 ' + Math.round(lay.width) + '%' + (lay.measured ? '(자동 측정)' : '');
       }
-      if (r.failed && r.failed.length) {
+      if (r.failed && r.failed.length && r.failed[0] === 'nobelow' && !r.done) {
+        status(preset.name + ' 은 원본 위에 복제본이 있어야 해요 → ' + DUP_HOW, 'warn');
+      } else if (r.failed && r.failed.length) {
         status(preset.name + ' · ' + r.done + '개 완료, ' + r.failed.length + '개 실패 (' + (ERR[r.failed[0]] || r.failed[0]) + ')', 'warn');
       } else if (r.missing && r.missing.length) {
         status(preset.name + ' · ' + r.missing.map(function (m) { return FXNAME[m] || m; }).join(', ') + ' 효과를 못 찾았어요 → "진단 정보 복사"를 눌러 알려주세요', 'warn');
+      } else if (r.notes && r.notes.indexOf('nodup') >= 0) {
+        status('✓ ' + preset.name + ' 적용 · 그런데 아래에 원본이 없어서 글자가 색으로만 나타나요 → 원본이 남아 있게 하려면 ' + DUP_HOW, 'warn');
       } else {
-        if (r.notes && r.notes.length) extra += ' · ' + r.notes.map(function (n) { return NOTES[n] || n; }).join(', ');
+        if (r.notes && r.notes.length) extra += ' · ' + r.notes.map(function (n) { return NOTES[n] || n; }).filter(Boolean).join(', ');
         if (preset.needsArea && !preset.typing && opts.autoArea !== false) extra += measured ? ' · 글자 영역 자동 측정' : ' · 글자 영역을 못 찾아 화면 전체 기준';
         if (preset.dup === 'below') extra += ' — 원본을 Alt+드래그로 아래 트랙에 복사한 뒤, 아래 클립에 쓰는 효과예요';
+        else if (preset.group === 'fill') extra += ' · 아래 원본 위에 색이 차올라요';
         else if (preset.dup) extra += ' — 원본을 Alt+드래그로 위 트랙에 복사한 뒤, 위 클립에 쓰는 효과예요';
         status('✓ ' + preset.name + ' 적용 · 클립 ' + r.done + '개' + extra, 'ok');
       }

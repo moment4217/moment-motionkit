@@ -241,12 +241,21 @@ body.mini #btnReload { display: none; }
 .pivotRow .hint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pickBox { display: none; background: var(--panel); border: 1px solid var(--accent2); border-radius: 8px; padding: 8px; margin-bottom: 10px; }
 .pickBox.show { display: block; }
-.pickHead { font-size: 12px; margin-bottom: 6px; }
-.pickHead small { color: var(--dim); margin-left: 6px; }
-.pickImg { position: relative; cursor: crosshair; background: #000; border-radius: 4px; overflow: hidden; min-height: 60px; }
-.pickImg img { width: 100%; display: block; }
-.pickDot { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; border: 2px solid #fff; background: rgba(79,156,255,.7); box-shadow: 0 0 0 2px rgba(0,0,0,.5); pointer-events: none; }
-.pickBtns { display: flex; gap: 6px; justify-content: flex-end; margin-top: 6px; }
+.pickHead { font-size: 12px; margin-bottom: 6px; line-height: 1.45; }
+.pickHead b { display: block; }
+.pickHead small { color: var(--dim); font-size: 11px; }
+.pickWrap { background: #000; border-radius: 4px; padding: 4px; }
+.pickImg { position: relative; display: table; margin: 0 auto; cursor: crosshair; user-select: none; touch-action: none; }
+.pickImg img { display: block; max-width: 100%; max-height: 52vh; min-height: 40px; pointer-events: none; }
+.pickGuide { position: absolute; pointer-events: none; opacity: .55; }
+.pickGuide.v { top: 0; bottom: 0; width: 0; border-left: 1px dashed rgba(255,255,255,.85); }
+.pickGuide.h { left: 0; right: 0; height: 0; border-top: 1px dashed rgba(255,255,255,.85); }
+.pickGuide.snap { opacity: 1; border-color: var(--accent); border-style: solid; }
+.pickDot { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; border: 2px solid #fff; background: rgba(79,156,255,.35); box-shadow: 0 0 0 2px rgba(0,0,0,.55); pointer-events: none; }
+.pickDot::after { content: ''; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%; background: #fff; }
+.pickImg.drag .pickDot { background: rgba(79,156,255,.7); transform: scale(1.15); }
+.pickBtns { display: flex; gap: 6px; justify-content: flex-end; align-items: center; margin-top: 6px; }
+.pickRead { margin-right: auto; font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
 .pickBtns button { padding: 5px 12px; }
 .colors { display: flex; gap: 5px; flex-wrap: wrap; }
 .colors button { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #333; padding: 0; }

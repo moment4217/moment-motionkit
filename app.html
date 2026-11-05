@@ -33,9 +33,9 @@
   </div>
   <!-- 기준점 지정 (화면 캡처) -->
   <div class="pickBox" id="pickBox">
-    <div class="pickHead">화면에서 기준점을 클릭하세요 <small>확대·회전이 이 점을 중심으로 들어가요</small></div>
-    <div class="pickImg" id="pickImg"><img id="pickPic" alt=""><span class="pickDot" id="pickDot"></span></div>
-    <div class="pickBtns"><button class="ghost" id="pickCenter">가운데로</button><button class="primary" id="pickDone">완료</button></div>
+    <div class="pickHead"><b>기준점 바꾸기</b><small>점을 드래그하거나 클릭하세요 · 선택한 클립의 확대·회전·이동이 이 점을 중심으로 바뀌어요 · 효과를 넣기 전에 찍어도 돼요</small></div>
+    <div class="pickWrap"><div class="pickImg" id="pickImg"><img id="pickPic" alt="" draggable="false"><i class="pickGuide v" id="pickGv"></i><i class="pickGuide h" id="pickGh"></i><span class="pickDot" id="pickDot"></span></div></div>
+    <div class="pickBtns"><span class="pickRead" id="pickRead"></span><button class="ghost" id="pickCenter">가운데로</button><button class="primary" id="pickDone">완료</button></div>
   </div>
   <!-- 모션 탭 -->
   <section id="tab-motion" class="pane on">
