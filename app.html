@@ -1,0 +1,207 @@
+<header id="top">
+  <div class="brand"><span class="logo"></span><span>Moment<b>_Motion Kit</b></span></div>
+  <nav class="tabs">
+    <button class="tab on" data-tab="motion">모션</button>
+    <button class="tab" data-tab="curve">커브</button>
+    <button class="tab" data-tab="fx">효과</button>
+  </nav>
+  <button class="icon" id="btnReload" title="패널 새로고침 (engine.js 등을 고친 뒤)">↻</button>
+  <button class="icon" id="btnMini" title="작게 접기 (즐겨찾기만 보기)">▁</button>
+</header>
+
+<!-- 미니 도구창: 즐겨찾기 버튼만 -->
+<div id="mini">
+  <div class="miniGrid" id="miniGrid"></div>
+  <div class="miniDur" id="miniDur"></div>
+  <div class="miniStatus" id="miniStatus"></div>
+</div>
+
+<main id="full">
+  <!-- 상단 바: 선택 클립 수 + 지우기 -->
+  <div class="topbar">
+    <span class="selChip" id="selChip">선택 0개</span>
+    <button class="ghost clearTop" id="btnClear" title="선택 클립에 MotionKit 이 넣은 효과를 지워요">⌫ 선택 클립의 모션 효과 지우기</button>
+  </div>
+  <div class="tipBox" id="tipBox">
+    <b>💡 즐겨찾기 사용법</b>
+    <ol>
+      <li>카드의 ☆ 를 누르거나, 변형 버튼을 <b>우클릭</b>하면 즐겨찾기에 들어가요.</li>
+      <li>오른쪽 위 <b>▁</b>(작게 접기)나 <b>Mini 패널</b>에서 즐겨찾기만 바로 쓸 수 있어요.</li>
+      <li>미니 창에서 버튼을 <b>끌어서</b> 순서를 바꿀 수 있어요.</li>
+    </ol>
+    <button class="link" id="tipOff">다시 보지 않기</button>
+  </div>
+  <!-- 기준점 지정 (화면 캡처) -->
+  <div class="pickBox" id="pickBox">
+    <div class="pickHead">화면에서 기준점을 클릭하세요 <small>확대·회전이 이 점을 중심으로 들어가요</small></div>
+    <div class="pickImg" id="pickImg"><img id="pickPic" alt=""><span class="pickDot" id="pickDot"></span></div>
+    <div class="pickBtns"><button class="ghost" id="pickCenter">가운데로</button><button class="primary" id="pickDone">완료</button></div>
+  </div>
+  <!-- 모션 탭 -->
+  <section id="tab-motion" class="pane on">
+    <div class="opts">
+      <div class="row">
+        <label>강도</label>
+        <div class="seg" id="optSize"></div>
+      </div>
+      <div class="row">
+        <label>길이</label>
+        <div class="durCtl" id="fullDur"></div>
+      </div>
+      <div class="row" id="speedRow">
+        <label>속도</label>
+        <div class="seg" id="optSpeed"></div>
+      </div>
+      <div class="row" id="zoomRow">
+        <label>천천히 줌</label>
+        <div class="seg" id="optZoomRate"></div>
+      </div>
+      <div class="row">
+        <label>시작점</label>
+        <div class="seg" id="optAnchor">
+          <button data-v="playhead">재생헤드</button>
+          <button data-v="start">클립 시작</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>등장</label>
+        <div class="seg" id="optOutside">
+          <button data-v="0">기본</button>
+          <button data-v="1">프레임 밖에서 꽂기</button>
+        </div>
+      </div>
+      <div class="row pivotRow">
+        <label>기준점</label>
+        <div class="pivGrid" id="pivGrid"></div>
+        <button class="chipA" id="btnPick">화면에서 지정</button>
+        <span class="hint" id="pivLabel">가운데</span>
+      </div>
+      <div class="row">
+        <label>모션블러</label>
+        <button class="toggle" id="optBlur" aria-label="모션블러"><i></i></button>
+        <span class="hint">빠른 움직임에 자동 블러</span>
+      </div>
+    </div>
+
+    <div class="cats" id="cats"></div>
+
+    <!-- 타이핑 설정: 모션자막 탭에서만 보임 -->
+    <div class="opts typing" id="typingOpts">
+      <div class="head"><span>타이핑 · 색 차오르기 설정</span><small id="typingAuto"></small></div>
+      <div class="row">
+        <label>글자 영역</label>
+        <button class="toggle" id="optAutoArea" aria-label="자동 측정"><i></i></button>
+        <span class="hint">자동 측정</span>
+        <button class="chipA" id="btnMeasure">지금 측정</button>
+      </div>
+      <div class="row">
+        <label>차오를 색</label>
+        <div class="colors" id="fillColors"></div>
+      </div>
+      <div class="row">
+        <label>문장</label>
+        <input id="tyText" placeholder="비우면 자막 글자를 자동으로 읽어요">
+      </div>
+      <div class="row">
+        <label>글자당</label>
+        <div class="seg" id="optFpc"></div>
+      </div>
+      <div class="row">
+        <label>글자 폭</label>
+        <button class="chipA" id="tyWAuto">자동</button>
+        <div class="slide"><input type="range" id="tyWidth" min="5" max="100" step="1"></div>
+        <span class="val" id="tyWVal"></span>
+      </div>
+      <div class="row">
+        <label>중심</label>
+        <div class="slide"><input type="range" id="tyCenter" min="0" max="100" step="1"></div>
+        <span class="val" id="tyCVal"></span>
+      </div>
+      <div class="row">
+        <label></label>
+        <button class="chipA" id="tyFrame">영역 보기</button>
+        <span class="hint">모니터에서 범위 확인</span>
+      </div>
+      <p class="note">자막 글자가 화면 가로에서 차지하는 범위예요. <b>영역 보기</b>를 켜고 글자가 딱 들어오게 맞춘 뒤 타이핑을 누르세요.</p>
+    </div>
+
+    <div class="grid" id="grid"></div>
+    <p class="note">"복제용" 효과: 원본을 Alt+드래그로 복사한 뒤 복사본에 쓰세요 (색 차오르기·잔상 = 위 트랙, 뒤에서 빛 반짝 = 아래 트랙).</p>
+
+    <button class="link" id="btnDiag">진단 정보 복사 (잘 안 될 때)</button>
+    <div class="diag" id="diagBox">
+      <textarea id="diagText" readonly></textarea>
+      <button class="ghost" id="diagClose">닫기</button>
+    </div>
+  </section>
+
+  <!-- 커브 탭 -->
+  <section id="tab-curve" class="pane">
+    <div class="card">
+      <canvas id="cv" width="600" height="420"></canvas>
+      <div class="readout" id="readout"></div>
+      <div class="track"><span id="ball"></span></div>
+    </div>
+
+    <div class="card">
+      <div class="head"><span>커브</span><small>우클릭: 내 커브 삭제</small></div>
+      <div class="chips" id="curveList"></div>
+      <div class="saveRow">
+        <input id="saveName" maxlength="12" placeholder="지금 커브를 이름 붙여 저장">
+        <button id="btnSave">저장</button>
+      </div>
+    </div>
+
+    <div class="opts">
+      <div class="row wrap">
+        <label>대상</label>
+        <div class="chips multi" id="kinds">
+          <button data-v="pos">위치</button>
+          <button data-v="scale">비율</button>
+          <button data-v="rot">회전</button>
+          <button data-v="op">불투명도</button>
+          <button data-v="other">기타 효과</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>범위</label>
+        <div class="seg" id="optScope">
+          <button data-v="all">모든 구간</button>
+          <button data-v="playhead">재생헤드 구간</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>키 간격</label>
+        <div class="seg" id="optStep">
+          <button data-v="1">1프레임</button>
+          <button data-v="2">2프레임</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="primary wide" id="btnCurve">선택 클립 키프레임에 커브 적용</button>
+    <button class="ghost wide" id="btnRestore">원래 키프레임으로 복원</button>
+    <p class="note">클립에 이미 있는 키프레임 사이를 이 커브 모양으로 채워요. 직접 찍은 키프레임에도 돼요. 커브를 바꿔서 다시 누르면 교체돼요.</p>
+  </section>
+  <!-- 효과 탭 -->
+  <section id="tab-fx" class="pane">
+    <div class="card">
+      <div class="head"><span>즐겨찾는 효과</span><small>클릭: 선택 클립에 추가 · 우클릭: 빼기</small></div>
+      <div class="fxFavs" id="fxFavs"></div>
+    </div>
+    <div class="card">
+      <div class="head"><span>효과 찾기</span><small id="fxCount"></small></div>
+      <div class="fxSearchRow">
+        <input id="fxSearch" placeholder="효과 이름 검색 (한글/영문)">
+        <div class="seg" id="fxKind">
+          <button data-v="video">비디오</button>
+          <button data-v="audio">오디오</button>
+        </div>
+      </div>
+      <div class="fxList" id="fxList"><p class="note">목록을 불러오는 중…</p></div>
+    </div>
+    <p class="note">이름을 누르면 선택한 클립에 바로 들어가요. ☆ 로 즐겨찾기하면 위와 미니 창에 나와요.<br>오디오 효과(리버브 등)는 타임라인에서 <b>오디오 클립</b>을 선택하고 누르세요.</p>
+  </section>
+</main>
+
+<footer id="status">클립을 선택하고 모션을 누르세요</footer>
