@@ -5,7 +5,7 @@
   var cep = window.__adobe_cep__;
   var FORCE_MINI = !!window.MK_FORCE_MINI;          // mini.html (별도 미니 패널)
   var MAIN_ID = 'com.moment.motionkit.main';
-  var RUN = window.MK_RUNNING || { v: '1.6.1', src: 'bundled' };
+  var RUN = window.MK_RUNNING || { v: '1.6.2', src: 'bundled' };
   var VERSION = 'v' + RUN.v;
   var SRCNAME = { online: '방금 자동 업데이트됨', cache: '저장된 업데이트', bundled: '설치본' };
 
@@ -449,28 +449,53 @@
     picking = false; pickImg.classList.remove('drag');
     save(); applyPivot();
   });
+  /* 캡처가 안 될 때도 점은 옮길 수 있게: 시퀀스 비율의 빈 화면 + 3분할 선 */
+  function blankFrame(w, h) {
+    var W = 480, H = Math.max(120, Math.round(W * (h || 1080) / (w || 1920)));
+    if (H > 860) { W = Math.round(W * 860 / H); H = 860; }
+    var c = document.createElement('canvas'); c.width = W; c.height = H;
+    var g = c.getContext('2d'); g.fillStyle = '#1b1b1b'; g.fillRect(0, 0, W, H);
+    g.strokeStyle = 'rgba(255,255,255,.12)'; g.lineWidth = 1;
+    [1 / 3, 2 / 3].forEach(function (k) { g.beginPath(); g.moveTo(W * k, 0); g.lineTo(W * k, H); g.moveTo(0, H * k); g.lineTo(W, H * k); g.stroke(); });
+    g.fillStyle = 'rgba(255,255,255,.35)'; g.font = '13px sans-serif'; g.textAlign = 'center';
+    g.fillText('화면 캡처를 못 해서 빈 화면이에요', W / 2, H / 2 + 28);
+    return c.toDataURL('image/png');
+  }
+  var picking0 = false;
   document.getElementById('btnPick').addEventListener('click', async function () {
-    status('화면을 캡처하는 중…');
-    var r = await call('mk_grabFrame', {});
-    if (!r.ok) return status(r.err === 'noexport' ? '이 프리미어 버전은 화면 캡처를 지원하지 않아요 → 9칸 버튼으로 골라주세요' : errText(r), 'err');
-    var im = await loadFrame(r.path);
-    if (!im) return status('캡처한 화면을 불러오지 못했어요 → 9칸 버튼으로 골라주세요', 'err');
-    pickPic.src = im.src; snapX = snapY = false; pickBox.classList.add('show'); placeDot();
-    status('점을 드래그하거나 클릭하세요 · 놓는 순간 선택 클립에 반영돼요', 'ok');
+    if (picking0) return;
+    picking0 = true;
+    try {
+      status('화면을 캡처하는 중…');
+      var r = await call('mk_grabFrame', {});
+      var im = r.ok ? await loadFrame(r.path) : null, src;
+      if (im) src = im.src;
+      else {
+        var c = await getCtx(false);
+        src = blankFrame(c && c.w, c && c.h);
+        lastGrabErr = r.ok ? 'load' : (r.err + (r.msg ? ' (' + r.msg + ')' : ''));
+      }
+      pickPic.src = src; snapX = snapY = false; pickBox.classList.add('show'); placeDot();
+      pickBox.scrollIntoView({ block: 'nearest' });
+      status(im ? '점을 드래그하거나 클릭하세요 · 놓는 순간 선택 클립에 반영돼요'
+                : '화면 캡처가 안 돼서 빈 화면에 표시했어요 · 점은 그대로 옮길 수 있어요 (진단 정보 복사로 알려주세요)', im ? 'ok' : 'warn');
+    } finally { picking0 = false; }
   });
   document.getElementById('pickCenter').addEventListener('click', function () { opts.pivot = [0.5, 0.5]; snapX = snapY = true; placeDot(); paintPivot(); save(); applyPivot(); });
   document.getElementById('pickDone').addEventListener('click', function () { pickBox.classList.remove('show'); call('mk_cleanTmp'); status('✓ 기준점: ' + pivLabel.textContent, 'ok'); });
 
   /* ---------- 글자 영역 자동 측정 ---------- */
-  var areaCache = {};
+  var areaCache = {}, lastGrabErr = '';
   var autoAreaBtn = document.getElementById('optAutoArea');
   function paintAutoArea() { autoAreaBtn.classList.toggle('on', opts.autoArea !== false); }
   autoAreaBtn.addEventListener('click', function () { opts.autoArea = opts.autoArea === false; paintAutoArea(); save(); });
   /* 클립만 보이게 캡처해서 밝은 픽셀이 있는 범위를 % 로 */
-  async function measureArea(clip) {
-    var key = clip.id + '|' + (clip.text || clip.name) + '|' + clip.start + '|' + clip.end;
-    if (areaCache[key] !== undefined) return areaCache[key];
-    var r = await call('mk_grabFrame', { t: clip.t, c: clip.c, isolate: true, at: clip.start + (clip.end - clip.start) * 0.8 });
+  async function measureArea(clip, useBelow) {
+    var tt = useBelow && clip.below >= 0 ? clip.below : clip.t;   /* 복제본용: 효과가 안 들어간 아래 원본을 잰다 */
+    var key = clip.id + '|' + tt + '|' + (clip.text || clip.name) + '|' + clip.start + '|' + clip.end;
+    if (areaCache[key]) return areaCache[key];
+    var r = await call('mk_grabFrame', { t: tt, c: clip.c, isolate: true, at: clip.start + (clip.end - clip.start) * 0.8 });
+    if (!r.ok) lastGrabErr = r.err + (r.msg ? ' (' + r.msg + ')' : '');
     var area = null;
     if (r.ok) {
       var im = await loadFrame(r.path);
@@ -860,7 +885,7 @@
       var measured = 0;
       if (preset.needsArea && opts.autoArea !== false && !(preset.typing && opts.typing.width > 0)) {
         status('글자 영역을 재는 중…');
-        for (var ci = 0; ci < ctx.clips.length; ci++) { var a = await measureArea(ctx.clips[ci]); ctx.clips[ci].area = a; if (a) measured++; }
+        for (var ci = 0; ci < ctx.clips.length; ci++) { var a = await measureArea(ctx.clips[ci], !!preset.dup && preset.dup !== 'below'); ctx.clips[ci].area = a; if (a) measured++; }
         call('mk_cleanTmp');
       }
       var plan = MK.buildPlan(preset, opts, ctx);
@@ -975,7 +1000,7 @@
   document.getElementById('btnDiag').addEventListener('click', async function () {
     status('진단 중…');
     var r = await call('mk_diag');
-    var head = 'Moment_Motion Kit ' + VERSION + '\n';
+    var head = 'Moment_Motion Kit ' + VERSION + (lastGrabErr ? '\nlast capture error: ' + lastGrabErr : '') + '\n';
     diagText.value = head + (r.ok ? r.text : '진단 실패: ' + errText(r));
     diagBox.classList.add('show');
     diagText.focus(); diagText.select();

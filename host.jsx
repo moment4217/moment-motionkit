@@ -194,6 +194,7 @@ function mk_context() {
         for (var i = 0; i < sel.length; i++) {
             var cl = sel[i].clip;
             clips.push({ t: sel[i].t, c: sel[i].c, id: mkClipId(cl, sel[i].t, sel[i].c), name: String(cl.name), text: mkReadText(cl),
+                below: mkFindBelow(seq, sel[i].t, cl, tpf),
                 start: Number(cl.start.ticks), end: Number(cl.end.ticks), inPoint: Number(cl.inPoint.ticks), speed: mkSpeed(cl) });
         }
         return mkJson({ ok: true, fps: MK_TPS / tpf, tpf: tpf,
@@ -769,20 +770,46 @@ function mk_grabFrame(json) {
             }
         }
         if (o.at !== undefined && o.at !== null) seq.setPlayerPosition(String(Math.round(o.at)));
-        var dir = Folder.temp.fsName.replace(/\\/g, "/");
-        var path = dir + "/mmk_frame_" + (new Date().getTime()) + ".png";
-        qs = qe.project.getActiveSequence();
-        qs.exportFramePNG(qs.CTI.timecode, path);
-        var f = new File(path), waited = 0;
-        while (!f.exists && waited < 4000) { $.sleep(100); waited += 100; f = new File(path); }
-        $.sleep(150);
-        return mkJson({ ok: f.exists, path: path, err: f.exists ? "" : "noframe" });
+        var got = mkExportFrame();
+        if (!got.path) return mkJson({ ok: false, err: "noframe", msg: got.errs.join(" / ") });
+        return mkJson({ ok: true, path: got.path, how: got.how });
     } catch (e) {
         return mkErr("ex", String(e));
     } finally {
         try { for (var m = 0; m < muted.length; m++) seq.videoTracks[muted[m]].setMute(0); } catch (e2) {}
         try { if (oldPh !== null) seq.setPlayerPosition(String(oldPh)); } catch (e3) {}
     }
+}
+/* 프로그램 모니터 화면을 PNG 로 저장. 프리미어는 확장자 없는 경로를 받아 .png 를 붙이고,
+ * 버전에 따라 경로 모양(슬래시/확장자)이 다르면 예외를 내서 여러 방법을 차례로 시도한다. → { path, how, errs } */
+var MK_FRAME_N = 0;
+function mkExportFrame() {
+    var errs = [], sep = /win/i.test(String($.os)) ? "\\" : "/";
+    var native = String(Folder.temp.fsName), slash = native.replace(/\\/g, "/");
+    MK_FRAME_N = (MK_FRAME_N + 1) % 1000;
+    var base = "mmk_frame_" + (new Date().getTime()) + "_" + MK_FRAME_N;
+    var tries = [
+        { dir: native, s: sep, ext: "", how: "native" },
+        { dir: native, s: sep, ext: ".png", how: "native.png" },
+        { dir: slash, s: "/", ext: ".png", how: "slash.png" },
+        { dir: slash, s: "/", ext: "", how: "slash" }
+    ];
+    for (var i = 0; i < tries.length; i++) {
+        var tr = tries[i], stem = tr.dir + tr.s + base + "_" + i, arg = stem + tr.ext;
+        var qs = null, tc = null;
+        try { qs = qe.project.getActiveSequence(); tc = qs.CTI.timecode; } catch (e0) { errs.push("cti: " + e0); continue; }
+        try { qs.exportFramePNG(tc, arg); } catch (e1) { errs.push(tr.how + ": " + e1); continue; }
+        var cands = [stem + ".png", arg, arg + ".png"], waited = 0, limit = i === 0 ? 4000 : 2500;
+        while (waited < limit) {
+            for (var k = 0; k < cands.length; k++) {
+                var f = new File(cands[k]);
+                if (f.exists && /\.png$/i.test(cands[k])) { $.sleep(150); return { path: String(f.fsName), how: tr.how, errs: errs }; }
+            }
+            $.sleep(100); waited += 100;
+        }
+        errs.push(tr.how + ": no file");
+    }
+    return { path: "", how: "", errs: errs };
 }
 /* 캡처 임시 파일 정리 */
 function mk_cleanTmp() {
@@ -893,6 +920,11 @@ function mk_diag() {
         }
         L.push("byName: " + tr.join(" "));
     } catch (e2) { L.push("effect list error " + e2); }
+    try {   /* 화면 캡처 시험 */
+        var ex = mkExportFrame();
+        L.push("capture: " + (ex.path ? "OK " + ex.how : "FAIL") + (ex.errs.length ? " [" + ex.errs.join(" / ") + "]" : ""));
+        if (ex.path) { try { new File(ex.path).remove(); } catch (e5) {} }
+    } catch (e4) { L.push("capture error " + e4); }
     try {
         var seq = app.project.activeSequence;
         if (!seq) L.push("no sequence");
