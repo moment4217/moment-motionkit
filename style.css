@@ -309,3 +309,66 @@ main#full { display: flex; flex-direction: column; overflow: hidden; padding: 8p
 .pickView { overflow: hidden; border-radius: 3px; }
 .pickView img { will-change: transform; }
 .pickBtns { flex-wrap: wrap; }
+
+/* ---------- v1.6.4: 검색 · 촘촘한 카드 · 커브/효과 탭 고정 · 좁은 패널 ---------- */
+.langBtn { font-size: 10.5px; font-weight: 700; letter-spacing: .3px; min-width: 26px; }
+.catRow { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; min-width: 0; }
+.catRow .cats { flex: 1; min-width: 0; margin-bottom: 0; }
+.mFind { position: relative; flex: none; width: 82px; transition: width .15s; }
+.mFind:focus-within, .mFind.has { width: 150px; }
+.mFind input { width: 100%; background: #151515; border: 1px solid #3a3a3a; border-radius: 12px; color: var(--text); padding: 3px 20px 3px 9px; font-size: 11.5px; outline: none; }
+.mFind input:focus { border-color: var(--accent2); }
+.mFindX { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; line-height: 14px; border-radius: 50%; color: var(--dim); font-size: 13px; display: none; padding: 0; }
+.mFind.has .mFindX { display: block; }
+.mFindX:hover { color: #fff; background: #333; }
+.grid .found { grid-column: 1 / -1; font-size: 11px; color: var(--dim); margin: 0 2px; }
+
+/* 촘촘한 효과 카드 */
+.grid { grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 5px; }
+.cardP { padding: 5px; gap: 3px; border-radius: 7px; }
+.cardP canvas { border-radius: 3px; }
+.cardP .nm { font-size: 11.5px; }
+.cardP .hd .en { font-size: 9.5px; }
+.cardP .ds { font-size: 10px; }
+.vars { gap: 2px; }
+.vb { padding: 3px 5px; font-size: 10.5px; }
+.pad { gap: 2px; max-width: 132px; }
+.pad .vb { padding: 2px 0; }
+.sechead { margin: 6px 2px 0; }
+
+/* 커브 · 효과 탭: 위는 고정, 아래만 스크롤 */
+#full > .pane.split.on { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
+.sTop { flex: none; margin: 0 -10px; padding: 0 10px 6px; border-bottom: 1px solid var(--line); }
+.sScroll { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -10px; padding: 8px 10px 10px; }
+.cvCard { margin-bottom: 6px; padding: 6px; }
+#cv { width: auto; max-width: 100%; max-height: 30vh; margin: 0 auto; }
+.cvCard .readout { margin: 4px 0 3px; }
+.btnPair { display: flex; gap: 6px; }
+.btnPair .wide { flex: 1; width: auto; margin: 0; padding: 7px 6px; font-size: 11.5px; }
+#tab-fx .sTop .card { margin-bottom: 6px; padding: 6px 8px; }
+#tab-fx .fxSearchRow { align-items: center; margin-bottom: 0; }
+.fxCount { flex: none; color: var(--dim); font-size: 10.5px; }
+#tab-fx .fxList { max-height: none; }
+
+/* 좁은 패널 */
+.clearTop .sh { display: none; }
+@media (max-width: 360px) {
+  .clearTop .lg { display: none; } .clearTop .sh { display: inline; }
+  .tab { padding: 4px 8px; }
+  .mFind { width: 64px; } .mFind:focus-within, .mFind.has { width: 120px; }
+}
+@media (max-width: 300px) {
+  header { padding: 6px; } .tab { padding: 3px 6px; font-size: 11px; }
+  .icon { padding: 2px 4px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+  .foldBtn { padding: 5px 5px; }
+  .btnPair { flex-direction: column; }
+  #tab-fx .fxSearchRow { flex-wrap: wrap; } #tab-fx .fxSearchRow input { flex-basis: 100%; }
+}
+
+.cardP .badge { top: 8px; left: 8px; }
+/* English: 라벨이 길어서 폭을 넓힘 */
+html[lang=en] .opts.compact .row > label { width: 50px; }
+html[lang=en] .opts.compact #zoomRow > label { width: 66px; }
+html[lang=en] .opts.compact .row > label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 480px) { html[lang=en] .clearTop .lg { display: none; } html[lang=en] .clearTop .sh { display: inline; } }

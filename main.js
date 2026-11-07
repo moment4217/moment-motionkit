@@ -5,9 +5,199 @@
   var cep = window.__adobe_cep__;
   var FORCE_MINI = !!window.MK_FORCE_MINI;          // mini.html (별도 미니 패널)
   var MAIN_ID = 'com.moment.motionkit.main';
-  var RUN = window.MK_RUNNING || { v: '1.6.3', src: 'bundled' };
+  var RUN = window.MK_RUNNING || { v: '1.6.4', src: 'bundled' };
   var VERSION = 'v' + RUN.v;
   var SRCNAME = { online: '방금 자동 업데이트됨', cache: '저장된 업데이트', bundled: '설치본' };
+
+
+  /* ---------- 언어 (한국어 / English) ----------
+   * 화면 글자는 한국어로 만들고, English 를 고르면 글자 노드를 아래 사전으로 바꿔 보여준다.
+   * 프리셋 이름/설명은 engine.js 의 MK.EN 표를 쓴다.
+   */
+  var LANG = 'ko';
+  var KO_EN = {
+    '모션': 'Motion', '커브': 'Curve', '효과': 'Effects', '시퀀스 없음': 'No sequence',
+    '설정 ▴': 'Settings ▴', '설정 ▾': 'Settings ▾', '설정 펼치기': 'Unfold settings', '설정 접기 (효과 목록을 넓게)': 'Fold settings (more room for effects)',
+    '설정 접기/펼치기': 'Fold/unfold settings', '눌러서 설정 펼치기': 'Click to unfold settings',
+    '⌫ 선택 클립의 모션 효과 지우기': '⌫ Clear motion effects on selected clips', '선택 클립의 모션 효과 지우기': 'Clear motion effects on selected clips',
+    '효과 지우기': 'Clear effects', '선택 클립에 MotionKit 이 넣은 효과를 지워요': 'Removes the effects MotionKit added to the selected clips',
+    '강도': 'Strength', '속도': 'Speed', '길이': 'Length', '시작': 'Start', '재생헤드': 'Playhead', '클립 시작': 'Clip start', '등장': 'Entry',
+    '기본': 'Normal', '밖에서 꽂기': 'From outside', '프레임 밖에서 팍 꽂기': 'Slam in from outside the frame', '기준점': 'Pivot',
+    '화면에서 지정': 'Pick on screen', '지금 화면을 캡처해서 기준점을 직접 찍어요': 'Capture the current frame and pick the pivot',
+    '블러': 'Blur', '자동 모션블러': 'Auto motion blur', '빠른 움직임에 자동으로 모션블러': 'Automatic motion blur on fast moves', '모션블러': 'Motion blur',
+    '천천히 줌': 'Slow zoom', '느림': 'Slow', '빠름': 'Fast', '클립에 맞춤': 'Fit clip', '자동': 'Auto', '켬': 'on', '끔': 'off', '▾ 설정': '▾ Settings',
+    '자동: 프리셋 기본 길이 × 속도': 'Auto: preset length × speed', '직접 입력도 돼요 (초)': 'You can type a value (sec)',
+    '길이 자동 (프리셋 기본 × 속도)': 'Length auto (preset × speed)', ' 로 지정': ' set',
+    '💡 즐겨찾기 사용법': '💡 Favorites', '카드의 ☆ 를 누르거나, 변형 버튼을': 'Click ☆ on a card, or', '우클릭': 'right-click',
+    '하면 즐겨찾기에 들어가요.': ' a variant button, to add it to favorites.', '(작게 접기)나': '(collapse) or the ', 'Mini 패널': 'Mini panel',
+    '에서 즐겨찾기만 바로 쓸 수 있어요.': ' show just your favorites.', '미니 창에서 버튼을': 'In the mini window,', '끌어서': 'drag',
+    '순서를 바꿀 수 있어요.': ' buttons to reorder them.', '다시 보지 않기': "Don't show again",
+    '타이핑 · 색 차오르기 설정': 'Typing · Color fill settings', '글자 영역': 'Text area', '자동 측정': 'Auto measure', '지금 측정': 'Measure now',
+    '차오를 색': 'Fill color', '문장': 'Text', '글자당': 'Per char', '글자 폭': 'Text width', '중심': 'Center', '영역 보기': 'Show area',
+    '영역 보기 끄기': 'Hide area', '모니터에서 범위 확인': 'Check the range on the monitor',
+    '자막 글자가 화면 가로에서 차지하는 범위예요.': 'The horizontal range the caption text takes on screen.',
+    '를 켜고 글자가 딱 들어오게 맞춘 뒤 타이핑을 누르세요.': ' on, fit the text inside it, then press Typing.',
+    '비우면 자막 글자를 자동으로 읽어요': 'Leave empty to read the caption text automatically',
+    '"복제용" 효과: 원본을 Alt+드래그로 복사한 뒤 복사본에 쓰세요 (색 차오르기·잔상 = 위 트랙, 뒤에서 빛 반짝 = 아래 트랙).':
+      '"Duplicate" effects: Alt+drag the original to make a copy and apply to the copy (Color fill · ghosts = track above, Back glow = track below).',
+    '진단 정보 복사 (잘 안 될 때)': 'Copy diagnostics (if something fails)', '닫기': 'Close',
+    '우클릭: 내 커브 삭제': 'Right-click: delete my curve', '지금 커브를 이름 붙여 저장': 'Name and save the current curve', '저장': 'Save',
+    '대상': 'Target', '위치': 'Position', '비율': 'Scale', '회전': 'Rotation', '불투명도': 'Opacity', '기타 효과': 'Other effects', '범위': 'Range',
+    '모든 구간': 'All segments', '재생헤드 구간': 'Segment at playhead', '키 간격': 'Key step', '1프레임': '1 frame', '2프레임': '2 frames',
+    '선택 클립 키프레임에 커브 적용': 'Apply curve to selected clip keyframes', '원래 키프레임으로 복원': 'Restore original keyframes',
+    '클립에 이미 있는 키프레임 사이를 이 커브 모양으로 채워요. 직접 찍은 키프레임에도 돼요. 커브를 바꿔서 다시 누르면 교체돼요.':
+      'Fills the space between existing keyframes with this curve. Works on hand-made keyframes too. Change the curve and press again to replace it.',
+    '선형': 'Linear', '부드럽게': 'Smooth', '감속': 'Ease out', '가속': 'Ease in', '강한 감속': 'Strong ease', '오버슈트': 'Overshoot',
+    '즐겨찾는 효과': 'Favorite effects', '클릭: 선택 클립에 추가 · 우클릭: 빼기': 'Click: add to selected clips · Right-click: remove',
+    '효과 찾기': 'Find effects', '효과 이름 검색 (한글/영문)': 'Search effects (Korean/English)', '비디오': 'Video', '오디오': 'Audio',
+    '목록을 불러오는 중…': 'Loading list…', '이름을 누르면 선택한 클립에 바로 들어가요. ☆ 로 즐겨찾기하면 위와 미니 창에 나와요.':
+      'Click a name to add it to the selected clips. Star it with ☆ to show it above and in the mini window.',
+    '오디오 효과(리버브 등)는 타임라인에서': 'For audio effects (reverb etc.), select an', '오디오 클립': 'audio clip', '을 선택하고 누르세요.': ' in the timeline first.',
+    '아래 목록에서 ☆ 를 눌러 추가하세요': 'Press ☆ in the list below to add', '클릭: 추가 / 우클릭: 즐겨찾기 빼기': 'Click: add / Right-click: remove favorite',
+    '찾는 효과가 없어요': 'No matching effects', '타임라인에서 오디오 클립을 먼저 선택하세요': 'Select an audio clip in the timeline first',
+    '선택한 오디오 클립에 추가': 'Add to selected audio clips', '선택한 클립에 추가': 'Add to selected clips',
+    '기준점 바꾸기': 'Change pivot', '▶ 미리보기': '▶ Preview', '가운데로': 'Center', '완료': 'Done', '이 점을 중심으로 줌되는 모습 다시 보기': 'Replay the zoom around this point',
+    '점을 드래그하거나 클릭하세요 · 놓으면 그 점을 중심으로 줌되는 모습을 미리 보여줘요 · 선택한 클립에 이미 넣은 모션도 바로 바뀌어요':
+      'Drag or click the point · on release, a zoom around it is previewed · motion already on the selected clip updates too',
+    '클립을 선택하고 모션을 누르세요': 'Select a clip and press a motion', '패널 새로고침 (engine.js 등을 고친 뒤)': 'Reload panel',
+    '작게 접기 (즐겨찾기만 보기)': 'Collapse (favorites only)', '전체 패널 열기': 'Open full panel', '크게 펼치기': 'Expand',
+    '창 > 확장 프로그램 > Moment_Motion Kit 을 여세요': 'Open Window > Extensions > Moment_Motion Kit', '패널 창을 조금 더 크게 늘리면 펼쳐져요': 'Make the panel a bit bigger to expand it',
+    '왼쪽 위': 'Top left', '위': 'Top', '오른쪽 위': 'Top right', '왼쪽': 'Left', '가운데': 'Center', '오른쪽': 'Right', '왼쪽 아래': 'Bottom left', '아래': 'Bottom', '오른쪽 아래': 'Bottom right',
+    '노랑': 'Yellow', '빨강': 'Red', '하늘': 'Sky', '핑크': 'Pink', '초록': 'Green', '흰색': 'White', '검정': 'Black',
+    '전체': 'All', '즐겨찾기': 'Favorites', '끝까지': 'to end', '즉시': 'instant', '효과 검색': 'Search effects', '효과 이름 검색': 'Search effects',
+    '방금 자동 업데이트됨': 'just auto-updated', '저장된 업데이트': 'saved update', '설치본': 'installed',
+    '시퀀스를 먼저 열어주세요': 'Open a sequence first', '변형(Transform) 효과를 추가하지 못했어요': "Couldn't add the Transform effect",
+    '효과를 추가할 수 없어요 (QE 사용 불가)': "Can't add effects (QE unavailable)", '프리미어 프로 안에서 열어주세요': 'Open this inside Premiere Pro',
+    '프리미어 응답을 읽지 못했어요': "Couldn't read Premiere's response", '아래 트랙에 원본 자막이 없어요': 'No original caption on the track below',
+    'VR 색수차': 'VR Chromatic Aberrations', '시간 포스터화': 'Posterize Time', '색조': 'Tint', '밝기 및 대비': 'Brightness & Contrast', '자르기': 'Crop',
+    '가우시안 흐림': 'Gaussian Blur', '난류 변위': 'Turbulent Displace', '방향 흐림': 'Directional Blur', '파도 비틀기': 'Wave Warp', '선형 닦아내기': 'Linear Wipe',
+    '경사(Ramp)': 'Ramp', '트랙 매트 키': 'Track Matte Key', '모션의 기본 자르기 사용': "used Motion's built-in crop", '자르기 대신 선형 닦아내기 사용': 'used Linear Wipe instead of Crop',
+    '자막을 Alt 를 누른 채 바로 위 트랙으로 끌어서 같은 위치에 복제 → 위쪽 복제본을 선택하고 다시 누르세요':
+      'Alt-drag the caption straight up onto the track above to duplicate it in place → select the upper copy and press again',
+    '오류: ': 'Error: ', '직접 입력한 문장': 'typed text', '자막 글자 읽음': 'read from caption', '클립 이름 사용': 'clip name', '자막 글자를 못 읽음': "couldn't read caption",
+    '자동: 자막 글자 → 클립 이름 순으로 읽음': 'Auto: caption text, then clip name', '자막 클립을 먼저 선택하세요': 'Select a caption clip first',
+    '자르기 효과를 쓸 수 없어서 영역 보기가 안 돼요 → 아래 "진단 정보 복사"를 눌러 알려주세요': 'Crop is not available, so the area view cannot be shown → press "Copy diagnostics" below and send it',
+    '영역 보기를 껐어요': 'Area view off', '화면 캡처를 못 해서 빈 화면이에요': 'Screen capture failed — blank frame', '화면을 캡처하는 중…': 'Capturing the screen…',
+    '점을 드래그하거나 클릭하세요 · 놓으면 그 점을 중심으로 줌되는 모습을 보여줘요': 'Drag or click the point · release to preview a zoom around it',
+    '화면 캡처가 안 돼서 빈 화면에 표시했어요 · 점은 그대로 옮길 수 있어요 (진단 정보 복사로 알려주세요)': "Couldn't capture the screen, so a blank frame is shown · you can still move the point (send Copy diagnostics)",
+    '못 찾음': 'not found', '글자 영역을 재는 중…': 'Measuring text area…',
+    '글자 영역을 못 찾았어요 (어두운 글자거나 캡처 불가) → 글자 폭/중심을 직접 맞춰주세요': "Couldn't find the text area (dark text or no capture) → set width/center by hand",
+    '어떤 영상에나 쓰기 좋은 기본 모션': 'Basic moves that fit any footage', '타격감 · 짧고 센 한 방': 'Punchy · short and strong', '자막에 잘 어울리는 움직임': 'Moves that suit captions',
+    '타이핑 · 블러 · 와이프 같은 모션자막': 'Motion captions: typing, blur, wipes', '상황 · 감정 연출': 'Situations · emotions',
+    '☆ 를 누르거나 변형 버튼을 우클릭해서 즐겨찾기를 추가하세요': 'Press ☆ or right-click a variant button to add favorites',
+    '즐겨찾기가 없어요. 전체 패널에서 ☆ 를 눌러 추가하세요.': 'No favorites yet. Press ☆ in the full panel to add some.',
+    '✓ 순서를 바꿨어요': '✓ Order changed', '적용 중…': 'Applying…', '타임라인에서 클립을 먼저 선택하세요': 'Select a clip in the timeline first',
+    '진단 중…': 'Running diagnostics…', '✓ 진단 정보를 복사했어요. 채팅에 붙여넣어 주세요': '✓ Diagnostics copied. Paste them in the chat',
+    '아래 내용을 전체 선택(Ctrl+A) 후 복사해 주세요': 'Select all (Ctrl+A) below and copy it', '선택한 클립에 지울 모션 효과가 없어요': 'No motion effects to clear on the selected clips',
+    '✓ 변형 효과 값을 초기화했어요': '✓ Transform values reset', '커브 이름을 입력하세요': 'Enter a curve name',
+    '재생헤드가 키프레임 두 개 사이에 있어야 해요': 'The playhead must be between two keyframes', '선택한 대상에 키프레임이 2개 이상인 속성이 없어요': 'No selected property has 2 or more keyframes',
+    '커브 적용 중…': 'Applying curve…', '복원할 기록이 없어요 (패널을 다시 열면 기록이 사라져요)': 'Nothing to restore (history is cleared when the panel reopens)',
+    '미리보기 모드 — 프리미어 안에서 열면 적용돼요': 'Preview mode — open inside Premiere to apply',
+    '지우기': 'Clear', '검색': 'Search', '찾는 모션이 없어요': 'No matching motions', '모션 검색': 'Search', '모션 이름 검색 (한글/영문)': 'Search motions (Korean/English)'
+  };
+  /* 이어 붙인 문장 조각 (긴 것부터 바꿈) */
+  var KO_EN_PART = {
+    '선택 클립 ': 'selected clips ', ' · 오디오 ': ' · audio ', '길이 ': 'Length ', '속도 ': 'Speed ', '강도 ': 'Strength ', '기준점 ': 'Pivot ', '블러 ': 'Blur ',
+    '직접 지정 (': 'Custom (', '기준점 가로 ': 'Pivot X ', '가로 ': 'X ', '% · 세로 ': '% · Y ', ' · 맞춤': ' · snapped',
+    ' · 다음에 넣는 효과부터 적용돼요': ' · applies to the next effects', ' · 이제 넣는 효과가 이 점을 중심으로 움직여요': ' · new effects will move around this point',
+    '✓ 기준점: ': '✓ Pivot: ', '✓ 글자 영역: ': '✓ Text area: ', ' · 복제용': ' · dup', '\n우클릭: 즐겨찾기': '\nRight-click: favorite',
+    '오디오 효과: ': 'Audio effect: ', '효과: ': 'Effect: ', '오디오 효과 · ': 'Audio effect · ', '영역 보기 ': 'Area view ', '글자 · 자동 폭 ≈ ': ' chars · auto width ≈ ',
+    ' 적용 · 자막 글자를 못 읽어서 "': ' applied · could not read the caption, so it uses "', ' 은 원본 위에 복제본이 있어야 해요 → ': ' needs a copy above the original → ',
+    ' 효과를 못 찾았어요 → "진단 정보 복사"를 눌러 알려주세요': ': effect not found → press "Copy diagnostics" and send it',
+    ' 적용 · 그런데 아래에 원본이 없어서 글자가 색으로만 나타나요 → 원본이 남아 있게 하려면 ': ' applied · but there is no original below, so only the colored text shows → to keep the original, ',
+    ' · 글자 영역 자동 측정': ' · text area measured', ' · 글자 영역을 못 찾아 화면 전체 기준': ' · text area not found, using the full frame',
+    ' — 원본을 Alt+드래그로 아래 트랙에 복사한 뒤, 아래 클립에 쓰는 효과예요': ' — Alt-drag a copy of the original to the track below and apply it to that copy',
+    ' · 아래 원본 위에 색이 차올라요': ' · color fills over the original below', ' — 원본을 Alt+드래그로 위 트랙에 복사한 뒤, 위 클립에 쓰는 효과예요': ' — Alt-drag a copy to the track above and apply it to that copy',
+    ' 적용 · 클립 ': ' applied · clips ', ' 추가 · 클립 ': ' added · clips ', '" 효과를 찾지 못했어요': '" not found', ' 을(를) 추가하지 못했어요': ": couldn't add",
+    '진단 실패: ': 'Diagnostics failed: ', '✓ 커브 "': '✓ Curve "', '" 저장': '" saved', '✓ 커브 적용 · 속성 ': '✓ Curve applied · properties ',
+    '✓ 원래 키프레임으로 복원 · 속성 ': '✓ Restored original keyframes · properties ', '프리미어와 연결하는 중… (': 'Connecting to Premiere… (',
+    '✓ 새 버전으로 자동 업데이트됐어요 · ': '✓ Auto-updated to the new version · ', '준비 완료 · ': 'Ready · ',
+    '프리미어와 연결되지 않았어요 — 프리미어를 재시작해 보세요 · 계속되면 "진단 정보 복사"를 눌러 알려주세요 (': 'Not connected to Premiere — try restarting Premiere · if it continues, press "Copy diagnostics" and send it (',
+    '(자동 측정)': '(auto)', '), 폭 ': '), width ', '오류: ': 'Error: ', '선택한 ': 'Add to selected ', '클립에 추가': 'clips', '타임라인에서 ': 'In the timeline, ',
+    '클립을 먼저 선택하세요': 'select a clip first'
+  };
+  var KO_EN_RULES = [
+    [/선택 (\d+)개/g, 'Selected $1'], [/선택 클립 (\d+)개에 바로 반영/g, 'applied to $1 selected clip(s)'], [/✓ 모션 효과 (\d+)개 삭제/g, '✓ Removed $1 motion effects'],
+    [/\((\d+)글자\) 기준이에요 → 타이핑 설정 "문장"에 자막 내용을 넣어주세요/g, '($1 chars) → type the caption into Typing settings "Text"'],
+    [/(\d+)글자\(/g, '$1 chars ('], [/(\d+)개 완료, (\d+)개 실패 \(/g, '$1 done, $2 failed ('], [/([\d.]+)초/g, '$1s'], [/(\d+)개/g, '$1']
+  ];
+  var PART_KEYS = Object.keys(KO_EN_PART).concat(Object.keys(KO_EN).filter(function (k) { return k.length >= 3; }))
+    .sort(function (a, b) { return b.length - a.length; });
+  var HANGUL = /[가-힣]/;
+  function tr(t) {
+    if (LANG !== 'en' || !t || !HANGUL.test(t)) return t;
+    var m = /^(\s*)([\s\S]*?)(\s*)$/.exec(t), core = m[2];
+    if (KO_EN.hasOwnProperty(core)) return m[1] + KO_EN[core] + m[3];
+    var s = t, i;
+    for (i = 0; i < KO_EN_RULES.length - 2; i++) s = s.replace(KO_EN_RULES[i][0], KO_EN_RULES[i][1]);
+    for (i = 0; i < PART_KEYS.length && HANGUL.test(s); i++) {
+      var k = PART_KEYS[i];
+      if (s.indexOf(k) >= 0) s = s.split(k).join(KO_EN_PART.hasOwnProperty(k) ? KO_EN_PART[k] : KO_EN[k]);
+    }
+    for (i = KO_EN_RULES.length - 2; i < KO_EN_RULES.length; i++) s = s.replace(KO_EN_RULES[i][0], KO_EN_RULES[i][1]);
+    return s;
+  }
+  /* 프리셋/묶음/카테고리 이름 */
+  function isEn() { return LANG === 'en'; }
+  function nameOf(p) { return isEn() && MK.EN.P[p.id] ? MK.EN.P[p.id][0] : p.name; }
+  function descOf(p) { return isEn() && MK.EN.P[p.id] ? MK.EN.P[p.id][1] : p.desc; }
+  function vOf(p) { var v = p.v || p.name; return isEn() ? (MK.EN.V[v] || (p.v ? v : nameOf(p))) : v; }
+  function gName(g) { return isEn() ? (g.en || g.name) : g.name; }
+  function gDesc(id, g) { return isEn() ? (MK.EN.G[id] || '') : (g.desc || ''); }
+  function catLabel(c) { return isEn() ? (MK.EN.CAT[c.id] || c.label) : c.label; }
+  function subLabel(s) { return isEn() ? (MK.EN.SUB[s] || s) : s; }
+  /* 화면 글자 노드 번역 (원래 한글은 노드에 기억) */
+  function trText(n) {
+    if (n.__out === n.data) return;
+    n.__ko = n.data;
+    var o = tr(n.data); n.__out = o;
+    if (o !== n.data) n.data = o;
+  }
+  var TR_ATTR = ['title', 'placeholder', 'aria-label'];
+  function trAttrs(el) {
+    if (!el.getAttribute) return;
+    el.__koA = el.__koA || {}; el.__outA = el.__outA || {};
+    for (var i = 0; i < TR_ATTR.length; i++) {
+      var a = TR_ATTR[i], v = el.getAttribute(a);
+      if (v === null || v === el.__outA[a]) continue;
+      el.__koA[a] = v; var o = tr(v); el.__outA[a] = o;
+      if (o !== v) el.setAttribute(a, o);
+    }
+  }
+  function skipNode(el) { return el && el.closest && el.closest('.noTr, script, style, textarea'); }
+  function trTree(root) {
+    if (!root) return;
+    if (root.nodeType === 3) { if (!skipNode(root.parentNode)) trText(root); return; }
+    if (root.nodeType !== 1 || skipNode(root)) return;
+    trAttrs(root);
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, null, false), n;
+    while ((n = w.nextNode())) {
+      if (n.nodeType === 1) { if (skipNode(n)) continue; trAttrs(n); }
+      else if (!skipNode(n.parentNode)) trText(n);
+    }
+  }
+  /* 한국어로 되돌릴 때: 기억해 둔 한글로 */
+  function untrTree(root) {
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, null, false), n;
+    while ((n = w.nextNode())) {
+      if (n.nodeType === 3) { if (n.__ko !== undefined && n.data === n.__out) { n.__out = n.__ko; n.data = n.__ko; } }
+      else if (n.__koA) for (var a in n.__koA) if (n.getAttribute(a) === n.__outA[a]) { n.__outA[a] = n.__koA[a]; n.setAttribute(a, n.__koA[a]); }
+    }
+  }
+  var trObs = null;
+  function watchLang() {
+    if (trObs || !window.MutationObserver) return;
+    trObs = new MutationObserver(function (list) {
+      if (LANG !== 'en') return;
+      for (var i = 0; i < list.length; i++) {
+        var m = list[i];
+        if (m.type === 'childList') for (var j = 0; j < m.addedNodes.length; j++) trTree(m.addedNodes[j]);
+        else if (m.type === 'characterData') { if (!skipNode(m.target.parentNode)) trText(m.target); }
+        else if (m.type === 'attributes') { if (!skipNode(m.target)) trAttrs(m.target); }
+      }
+    });
+    trObs.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: TR_ATTR });
+  }
 
   /* ---------- 프리미어 호출 ---------- */
   function parse(r) {
@@ -54,10 +244,12 @@
    * 다른 패널에서 바꾼 내용을 지우지 않는다(3-way 병합). 저장 후 다른 패널에 바로 알림.
    */
   var DEF = {
-    opts: { size: 3, speed: 3, dur: 0, zoomRate: 0, anchor: 'playhead', blur: true, cat: 'all', step: 1, mini: false, scope: 'all',
+    opts: { size: 3, speed: 3, dur: 0, zoomRate: 0, anchor: 'start', blur: true, cat: 'all', step: 1, mini: false, scope: 'all',
       kinds: { pos: true, scale: true, rot: true, op: true, other: false },
       typing: { text: '', fpc: 2, width: '', center: '' }, outside: false, pivot: [0.5, 0.5], autoArea: true, fillColor: 'yellow' },
     tipOff: false,
+    lang: 'ko',
+    mig: 0,
     favs: MK.DEFAULT_FAVS.slice(),
     fxFavs: [],
     curve: MK.EASES.out.slice(),
@@ -134,14 +326,14 @@
     }
   }
   var lastSync = 0;
-  function sync(force) {
+  function sync(force, after) {
     var now = Date.now();
-    if (flushing || (!force && now - lastSync < 800)) return;
+    if (flushing || (!force && now - lastSync < 800)) { if (after) after(null); return; }
     lastSync = now;
     call('mk_loadSettings').then(function (r) {
       var remote = r.ok && parseSettings(r.data);
-      if (!remote || flushing) return;
-      if (pull(remote)) { persistLocal(); refreshAll(); }
+      if (remote && !flushing && pull(remote)) { persistLocal(); if (S.lang !== LANG) applyLang(); else refreshAll(); }
+      if (after) after(remote || null);
     });
   }
   /* 패널 사이 즉시 알림 (CEP 이벤트) + 혹시 못 받을 때를 위한 주기 확인 */
@@ -260,7 +452,7 @@
       var a = !(opts.dur > 0);
       wrap.classList.toggle('auto', a); auto.classList.toggle('on', a);
       if (!track.classList.contains('drag')) range.value = MK.secToPos(a ? lastManual : opts.dur);
-      if (document.activeElement !== val) val.value = a ? '자동' : fmtSec(opts.dur);
+      if (document.activeElement !== val) val.value = a ? (isEn() ? 'Auto' : '자동') : tr(fmtSec(opts.dur));
       place();
     }
     range.addEventListener('pointerdown', function () { track.classList.add('drag'); });
@@ -756,7 +948,7 @@
   function renderCats() {
     catsEl.innerHTML = '';
     [{ id: 'fav', label: '★' }, { id: 'all', label: '전체' }].concat(MK.CATS).forEach(function (c) {
-      var b = document.createElement('button'); b.textContent = c.label; b.dataset.v = c.id;
+      var b = document.createElement('button'); b.textContent = catLabel(c); b.dataset.v = c.id;
       if (c.id === 'fav') b.title = '즐겨찾기';
       b.classList.toggle('on', opts.cat === c.id);
       b.addEventListener('click', function () { opts.cat = c.id; save(); renderCats(); renderGrid(); var ms = document.getElementById('mScroll'); if (ms) ms.scrollTop = 0; });
@@ -774,7 +966,7 @@
     var g = members ? MK.GROUPS[preset.group] : null;
     var el = document.createElement(members ? 'div' : 'button');
     el.className = 'cardP' + (g && g.layout === 'dpad' ? ' dpad' : '');
-    var cv = document.createElement('canvas'); cv.width = 160; cv.height = 90;
+    var cv = document.createElement('canvas'); cv.width = 160; cv.height = 80;
     var hd = document.createElement('div'); hd.className = 'hd';
     var nm = document.createElement('span'); nm.className = 'nm';
     var en = document.createElement('span'); en.className = 'en';
@@ -787,15 +979,15 @@
     drawStill(cv, pv, kind);
     bd.textContent = durText(first) + (first.dup ? ' · 복제용' : '');
     if (members) {
-      nm.textContent = g.name; en.textContent = g.en || ''; ds.textContent = g.desc || '';
+      nm.textContent = gName(g); en.textContent = isEn() ? '' : (g.en || ''); ds.textContent = gDesc(preset.group, g);
       var box = document.createElement('div'); box.className = g.layout === 'dpad' ? 'pad' : 'vars';
       function vbtn(p) {
         var b = document.createElement('button'); b.className = 'vb' + (isFav(p.id) ? ' fav' : '');
-        b.textContent = p.v || p.name; b.title = p.name + ' — ' + p.desc + '\n우클릭: 즐겨찾기' + (isFav(p.id) ? ' (★)' : '');
+        b.textContent = vOf(p); b.title = nameOf(p) + ' — ' + descOf(p) + '\n우클릭: 즐겨찾기' + (isFav(p.id) ? ' (★)' : '');
         var f = null;
         b.addEventListener('mouseenter', function () {
           f = f || MK.preview(p, opts); play(cv, f, kind);
-          ds.textContent = p.desc; bd.textContent = durText(p) + (p.dup ? ' · 복제용' : '');
+          ds.textContent = descOf(p); bd.textContent = durText(p) + (p.dup ? ' · 복제용' : '');
         });
         b.addEventListener('click', function () { apply(p, el); });
         b.addEventListener('contextmenu', function (e) { e.preventDefault(); toggleFav(p.id); });
@@ -813,9 +1005,9 @@
         });
       } else members.forEach(function (p) { box.appendChild(vbtn(p)); });
       el.appendChild(box);
-      el.addEventListener('mouseleave', function () { stop(); ds.textContent = g.desc || ''; bd.textContent = durText(first) + (first.dup ? ' · 복제용' : ''); });
+      el.addEventListener('mouseleave', function () { stop(); ds.textContent = gDesc(preset.group, g); bd.textContent = durText(first) + (first.dup ? ' · 복제용' : ''); });
     } else {
-      nm.textContent = preset.name; en.textContent = opts.cat === 'fav' ? '' : (preset.en || ''); ds.textContent = preset.desc; el.title = preset.desc;
+      nm.textContent = nameOf(preset); en.textContent = opts.cat === 'fav' || isEn() ? '' : (preset.en || ''); ds.textContent = descOf(preset); el.title = descOf(preset);
       var star = document.createElement('span'); star.className = 'star' + (isFav(preset.id) ? ' on' : '');
       star.textContent = isFav(preset.id) ? '★' : '☆'; star.title = '즐겨찾기';
       star.addEventListener('click', function (e) { e.stopPropagation(); toggleFav(preset.id); });
@@ -835,10 +1027,42 @@
     if (small) { var sm = document.createElement('small'); sm.textContent = small; h.appendChild(sm); }
     gridEl.appendChild(h);
   }
+  /* 모션 검색 (한글/영문 이름·설명) */
+  var mSearch = document.getElementById('mSearch'), mFind = mSearch ? mSearch.parentNode : null;
+  function textOf(p) {
+    var g = p.group ? MK.GROUPS[p.group] : null, en = MK.EN.P[p.id] || [];
+    return [p.id, p.name, p.en, p.desc, p.v, en[0], en[1], g && g.name, g && g.en, g && g.desc, p.group && MK.EN.G[p.group]].join(' ').toLowerCase();
+  }
+  function hit(p, q) { return textOf(p).indexOf(q) >= 0; }
+  if (mSearch) {
+    mSearch.addEventListener('input', function () { mFind.classList.toggle('has', !!mSearch.value); renderGrid(); document.getElementById('mScroll').scrollTop = 0; });
+    mSearch.addEventListener('keydown', function (e) { if (e.key === 'Escape') { mSearch.value = ''; mFind.classList.remove('has'); renderGrid(); } });
+    document.getElementById('mSearchX').addEventListener('click', function () { mSearch.value = ''; mFind.classList.remove('has'); renderGrid(); mSearch.focus(); });
+  }
   function renderGrid() {
     stop();
     gridEl.innerHTML = '';
-    zoomRow.style.display = ['basic', 'all', 'fav'].indexOf(opts.cat) >= 0 ? '' : 'none';
+    var q = mSearch ? mSearch.value.trim().toLowerCase() : '';
+    zoomRow.style.display = q || ['basic', 'all', 'fav'].indexOf(opts.cat) >= 0 ? '' : 'none';
+    if (q) {
+      var shown = 0, gdone = {}, lc = '';
+      MK.PRESETS.forEach(function (p) {
+        if (opts.cat === 'fav' && !isFav(p.id)) return;
+        if (p.group) {
+          if (gdone[p.group]) return;
+          var mem = MK.PRESETS.filter(function (x) { return x.group === p.group; });
+          if (!mem.some(function (x) { return hit(x, q); })) return;
+          gdone[p.group] = true;
+          if (p.cat !== lc) { lc = p.cat; heading(catLabel(MK.CATS.filter(function (c) { return c.id === p.cat; })[0]), ''); }
+          gridEl.appendChild(card(p, mem)); shown++;
+        } else if (hit(p, q)) {
+          if (p.cat !== lc) { lc = p.cat; heading(catLabel(MK.CATS.filter(function (c) { return c.id === p.cat; })[0]), ''); }
+          gridEl.appendChild(card(p)); shown++;
+        }
+      });
+      if (!shown) gridEl.innerHTML = '<p class="note">찾는 모션이 없어요</p>';
+      return;
+    }
     if (opts.cat === 'fav') {
       var favs = S.favs.map(MK.getPreset).filter(Boolean);
       if (!favs.length) { gridEl.innerHTML = '<p class="note">☆ 를 누르거나 변형 버튼을 우클릭해서 즐겨찾기를 추가하세요</p>'; return; }
@@ -850,9 +1074,9 @@
       if (opts.cat !== 'all' && p.cat !== opts.cat) return;
       if (opts.cat === 'all' && p.cat !== lastCat) {
         lastCat = p.cat; lastSub = '';
-        heading(MK.CATS.filter(function (c) { return c.id === p.cat; })[0].label, CAT_DESC[p.cat]);
+        heading(catLabel(MK.CATS.filter(function (c) { return c.id === p.cat; })[0]), isEn() ? MK.EN.CAT_DESC[p.cat] : CAT_DESC[p.cat]);
       }
-      if (p.sub && p.sub !== lastSub) { lastSub = p.sub; heading('• ' + p.sub, '', 'subhead'); }
+      if (p.sub && p.sub !== lastSub) { lastSub = p.sub; heading('• ' + subLabel(p.sub), '', 'subhead'); }
       if (p.group) {
         if (done[p.group]) return;
         done[p.group] = true;
@@ -874,9 +1098,9 @@
       miniGrid.appendChild(p);
     }
     list.forEach(function (preset) {
-      var t = document.createElement('button'); t.className = 'tile'; t.title = preset.name + ' — ' + preset.desc;
+      var t = document.createElement('button'); t.className = 'tile'; t.title = nameOf(preset) + ' — ' + descOf(preset);
       var cv = document.createElement('canvas'); cv.width = 64; cv.height = 36;
-      var lb = document.createElement('span'); lb.textContent = preset.name;
+      var lb = document.createElement('span'); lb.textContent = nameOf(preset);
       t.appendChild(cv); t.appendChild(lb);
       var pv = MK.preview(preset, opts), kind = kindOf(preset, pv);
       drawStill(cv, pv, kind);
@@ -888,7 +1112,7 @@
     });
     S.fxFavs.forEach(function (f) {
       var t = document.createElement('button'); t.className = 'tile fxTile' + (f.a ? ' audio' : ''); t.title = (f.a ? '오디오 효과: ' : '효과: ') + f.n;
-      t.innerHTML = '<b>' + (f.a ? '♪ FX' : 'FX') + '</b><span></span>'; t.querySelector('span').textContent = f.n;
+      t.innerHTML = '<b>' + (f.a ? '♪ FX' : 'FX') + '</b><span class="noTr"></span>'; t.querySelector('span').textContent = f.n;
       t.addEventListener('click', function () { addFx(f.n, !!f.a, t); });
       dragTile(t, 'f:' + (f.a ? 1 : 0) + ':' + f.n);
       miniGrid.appendChild(t);
@@ -966,25 +1190,25 @@
         autoW = lay.auto; paintTyping();
         if (src.from === 'guess') {
           busy = false;
-          return status(preset.name + ' 적용 · 자막 글자를 못 읽어서 "' + src.text + '"(' + lay.chars.length + '글자) 기준이에요 → 타이핑 설정 "문장"에 자막 내용을 넣어주세요', 'warn');
+          return status(nameOf(preset) + ' 적용 · 자막 글자를 못 읽어서 "' + src.text + '"(' + lay.chars.length + '글자) 기준이에요 → 타이핑 설정 "문장"에 자막 내용을 넣어주세요', 'warn');
         }
         extra += ' · ' + lay.chars.length + '글자(' + SRC[src.from] + '), 폭 ' + Math.round(lay.width) + '%' + (lay.measured ? '(자동 측정)' : '');
       }
       if (r.failed && r.failed.length && r.failed[0] === 'nobelow' && !r.done) {
-        status(preset.name + ' 은 원본 위에 복제본이 있어야 해요 → ' + DUP_HOW, 'warn');
+        status(nameOf(preset) + ' 은 원본 위에 복제본이 있어야 해요 → ' + DUP_HOW, 'warn');
       } else if (r.failed && r.failed.length) {
-        status(preset.name + ' · ' + r.done + '개 완료, ' + r.failed.length + '개 실패 (' + (ERR[r.failed[0]] || r.failed[0]) + ')', 'warn');
+        status(nameOf(preset) + ' · ' + r.done + '개 완료, ' + r.failed.length + '개 실패 (' + (ERR[r.failed[0]] || r.failed[0]) + ')', 'warn');
       } else if (r.missing && r.missing.length) {
-        status(preset.name + ' · ' + r.missing.map(function (m) { return FXNAME[m] || m; }).join(', ') + ' 효과를 못 찾았어요 → "진단 정보 복사"를 눌러 알려주세요', 'warn');
+        status(nameOf(preset) + ' · ' + r.missing.map(function (m) { return FXNAME[m] || m; }).join(', ') + ' 효과를 못 찾았어요 → "진단 정보 복사"를 눌러 알려주세요', 'warn');
       } else if (r.notes && r.notes.indexOf('nodup') >= 0) {
-        status('✓ ' + preset.name + ' 적용 · 그런데 아래에 원본이 없어서 글자가 색으로만 나타나요 → 원본이 남아 있게 하려면 ' + DUP_HOW, 'warn');
+        status('✓ ' + nameOf(preset) + ' 적용 · 그런데 아래에 원본이 없어서 글자가 색으로만 나타나요 → 원본이 남아 있게 하려면 ' + DUP_HOW, 'warn');
       } else {
         if (r.notes && r.notes.length) extra += ' · ' + r.notes.map(function (n) { return NOTES[n] || n; }).filter(Boolean).join(', ');
         if (preset.needsArea && !preset.typing && opts.autoArea !== false) extra += measured ? ' · 글자 영역 자동 측정' : ' · 글자 영역을 못 찾아 화면 전체 기준';
         if (preset.dup === 'below') extra += ' — 원본을 Alt+드래그로 아래 트랙에 복사한 뒤, 아래 클립에 쓰는 효과예요';
         else if (preset.group === 'fill') extra += ' · 아래 원본 위에 색이 차올라요';
         else if (preset.dup) extra += ' — 원본을 Alt+드래그로 위 트랙에 복사한 뒤, 위 클립에 쓰는 효과예요';
-        status('✓ ' + preset.name + ' 적용 · 클립 ' + r.done + '개' + extra, 'ok');
+        status('✓ ' + nameOf(preset) + ' 적용 · 클립 ' + r.done + '개' + extra, 'ok');
       }
     } finally { busy = false; el.classList.remove('busy'); }
   }
@@ -1021,7 +1245,7 @@
     fxFavsEl.innerHTML = '';
     if (!S.fxFavs.length) { fxFavsEl.innerHTML = '<span class="empty">아래 목록에서 ☆ 를 눌러 추가하세요</span>'; return; }
     S.fxFavs.forEach(function (f) {
-      var b = document.createElement('button'); b.className = 'fxChip' + (f.a ? ' audio' : ''); b.textContent = f.n;
+      var b = document.createElement('button'); b.className = 'fxChip noTr' + (f.a ? ' audio' : ''); b.textContent = f.n;
       b.title = (f.a ? '오디오 효과 · ' : '') + '클릭: 추가 / 우클릭: 즐겨찾기 빼기';
       b.addEventListener('click', function () { addFx(f.n, !!f.a, b); });
       b.addEventListener('contextmenu', function (e) { e.preventDefault(); toggleFxFav(f.n, f.a); });
@@ -1039,7 +1263,7 @@
       var row = document.createElement('div'); row.className = 'fxRow';
       var st = document.createElement('button'); st.className = 'st' + (isFxFav(n, audio) ? ' on' : ''); st.textContent = isFxFav(n, audio) ? '★' : '☆';
       st.title = '즐겨찾기'; st.addEventListener('click', function () { toggleFxFav(n, audio); });
-      var nm = document.createElement('button'); nm.className = 'nm'; nm.textContent = n; nm.title = '선택한 ' + (audio ? '오디오 ' : '') + '클립에 추가';
+      var nm = document.createElement('button'); nm.className = 'nm noTr'; nm.textContent = n; nm.title = '선택한 ' + (audio ? '오디오 ' : '') + '클립에 추가';
       nm.addEventListener('click', function () { addFx(n, audio, nm); });
       row.appendChild(st); row.appendChild(nm); fxListEl.appendChild(row);
     });
@@ -1157,7 +1381,7 @@
       .concat(S.mine.map(function (m, i) { return { name: m.name, c: m.c, mine: i }; }))
       .forEach(function (c) {
         var b = document.createElement('button'); b.textContent = c.name;
-        b._c = c.c; if (c.mine !== undefined) b.classList.add('mine');
+        b._c = c.c; if (c.mine !== undefined) b.classList.add('mine', 'noTr');
         b.addEventListener('click', function () { S.curve = c.c.slice(); save(); drawCurve(); });
         if (c.mine !== undefined) b.addEventListener('contextmenu', function (e) {
           e.preventDefault(); S.mine.splice(c.mine, 1); save(); renderCurveChips(); paintCurveChips();
@@ -1212,9 +1436,29 @@
     renderCats(); renderGrid(); renderCurveChips(); drawCurve(); renderFxFavs(); renderFxList();
     wasMini = null; layout();
   }
+  /* ---------- 언어 버튼 ---------- */
+  var btnLang = document.getElementById('btnLang');
+  function applyLang() {
+    LANG = S.lang === 'en' ? 'en' : 'ko';
+    document.documentElement.lang = LANG;
+    MK.setPreviewText(isEn() ? 'Moment Kit' : '모먼트 모션킷');
+    if (btnLang) { btnLang.textContent = isEn() ? '한' : 'EN'; btnLang.title = isEn() ? '한국어로 보기' : 'View in English'; }
+    if (!isEn()) untrTree(document.body);
+    refreshAll();
+    try { setFold(motionOpts.classList.contains('folded')); paintSum(); } catch (e) {}
+    if (isEn()) trTree(document.body);
+  }
+  if (btnLang) btnLang.addEventListener('click', function () { S.lang = isEn() ? 'ko' : 'en'; save(); applyLang(); });
+  watchLang();
+  LANG = S.lang === 'en' ? 'en' : 'ko';
   refreshAll();
   setFold(lsGet(FOLD_KEY) === '1'); paintSum();
-  sync(true);
+  if (isEn()) applyLang(); else if (btnLang) { btnLang.textContent = 'EN'; btnLang.title = 'View in English'; }
+  /* v1.6.4: 시작점 기본값을 "클립 시작"으로 — 예전 설정도 한 번 맞춘다 */
+  sync(true, function (remote) {
+    var mig = Math.max(S.mig || 0, (remote && remote.mig) || 0);
+    if (mig < 164) { opts.anchor = 'start'; S.mig = 164; save(); refreshAll(); }
+  });
   /* ---------- 연결 확인 (재시도 → 프리미어 쪽 스크립트 다시 불러오기) ---------- */
   var connErr = '';
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
