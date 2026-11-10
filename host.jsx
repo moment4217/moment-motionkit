@@ -81,6 +81,11 @@ var MK_SPECS = {
         names: ["Track Matte Key", "\uD2B8\uB799 \uB9E4\uD2B8 \uD0A4"],
         scan: [/track matte/i, /\uD2B8\uB799 \uB9E4\uD2B8/],
         ok: function (m) { return /track ?matte/i.test(m); }
+    },
+    cpin: { /* 모퉁이 고정(Corner Pin) — 트래킹 탭의 화면 합성 */
+        names: ["Corner Pin", "\uBAA8\uD241\uC774 \uACE0\uC815", "\uBAA8\uC11C\uB9AC \uACE0\uC815", "\uCF54\uB108 \uD540"],
+        scan: [/^corner pin$/i, /^\uBAA8\uD241\uC774 \uACE0\uC815$/, /^\uBAA8\uC11C\uB9AC \uACE0\uC815$/, /^\uCF54\uB108 \uD540$/],
+        ok: function (m) { return /corner ?pin/i.test(m); }
     }
 };
 /* 추가 효과 속성의 표시 이름 (영문 / 한글). 이름으로 먼저 찾고, 없으면 번호로 */
@@ -99,6 +104,8 @@ var MK_PNAMES = {
     proc:  { Brightness: ["Brightness", "\uBC1D\uAE30", "\uBA85\uB3C4"], Contrast: ["Contrast", "\uB300\uBE44"], Hue: ["Hue", "\uC0C9\uC870"], Saturation: ["Saturation", "\uCC44\uB3C4"] },
     chroma: { Red: [/red/i, /\uBE68\uAC15|\uBE68\uAC04|\uC801/], Green: [/green/i, /\uCD08\uB85D|\uB179/], Blue: [/blue/i, /\uD30C\uB791|\uD30C\uB780|\uCCAD/] },
     post:  { Rate: ["Frame Rate", "\uD504\uB808\uC784 \uC18D\uB3C4"] },
+    cpin:  { UL: [/upper left/i, /\uC67C\uCABD \uC704/, /\uC88C\uCE21 \uC0C1\uB2E8/, /\uC67C\uCABD \uC0C1\uB2E8/], UR: [/upper right/i, /\uC624\uB978\uCABD \uC704/, /\uC6B0\uCE21 \uC0C1\uB2E8/, /\uC624\uB978\uCABD \uC0C1\uB2E8/],
+             LL: [/lower left/i, /\uC67C\uCABD \uC544\uB798/, /\uC88C\uCE21 \uD558\uB2E8/, /\uC67C\uCABD \uD558\uB2E8/], LR: [/lower right/i, /\uC624\uB978\uCABD \uC544\uB798/, /\uC6B0\uCE21 \uD558\uB2E8/, /\uC624\uB978\uCABD \uD558\uB2E8/] },
     lwipe: { Completion: ["Transition Completion", "\uC804\uD658 \uC644\uB8CC"], Angle: ["Wipe Angle", "\uB2E6\uC544\uB0B4\uAE30 \uAC01\uB3C4"], Feather: ["Feather", "\uD398\uB354", "\uBC1D\uC544\uC9C0\uAE30"] }
 };
 /* 변형(Transform) 효과의 속성 순서 */
@@ -579,11 +586,14 @@ function mk_readKeys() {
                         if (v === null) { okv = false; break; }
                         keys.push([tk, v]);
                     }
-                    if (okv) params.push({ ci: ci, pi: pi, kind: mkKind(match, pi), keys: keys });
+                    var cn = "", pn = "";
+                    try { cn = String(comp.displayName); } catch (e5) { cn = ""; }
+                    try { pn = String(prm.displayName); } catch (e6) { pn = ""; }
+                    if (okv) params.push({ ci: ci, pi: pi, kind: mkKind(match, pi), keys: keys, cn: cn, pn: pn });
                 }
             }
             var phSeq = Number(seq.getPlayerPosition().ticks);
-            clips.push({ id: mkClipId(clip, sel[s].t, sel[s].c), t: sel[s].t, c: sel[s].c, speed: mkSpeed(clip), params: params,
+            clips.push({ id: mkClipId(clip, sel[s].t, sel[s].c), t: sel[s].t, c: sel[s].c, speed: mkSpeed(clip), params: params, name: String(clip.name || ''),
                 ph: Number(clip.inPoint.ticks) + (phSeq - Number(clip.start.ticks)) * mkSpeed(clip) });
         }
         return mkJson({ ok: true, tpf: Number(seq.timebase), clips: clips });
@@ -629,7 +639,7 @@ function mk_clear() {
         if (!seq) return mkErr("noseq");
         var tpf = Number(seq.timebase), qs = null;
         try { app.enableQE(); qs = qe.project.getActiveSequence(); } catch (e) { qs = null; }
-        var sel = mkSelected(seq), removed = 0, reset = 0, kinds = ["tf", "crop", "gblur", "turb", "dblur", "wwarp", "lwipe", "tint", "bc", "proc", "chroma", "post", "ramp", "tmk"],
+        var sel = mkSelected(seq), removed = 0, reset = 0, kinds = ["tf", "crop", "gblur", "turb", "dblur", "wwarp", "lwipe", "tint", "bc", "proc", "chroma", "post", "ramp", "tmk", "cpin"],
             FILLKIND = { tint: 1, ramp: 1, tmk: 1, wwarp: 1 };
         for (var s = 0; s < sel.length; s++) {
             var clip = sel[s].clip;
@@ -739,6 +749,199 @@ function mk_setPivot(json) {
     } catch (e) { return mkErr("ex", String(e)); }
 }
 
+/* ---------- 모션블러 (Super Pad 방식): 모션(Motion) 애니메이션을 변형(Transform) 효과로 옮기고 셔터 180° ----------
+ * 이미 변형 효과로 움직이는 클립은 셔터만 켠다. 영상 크기가 시퀀스와 다르면(축소·확대한 소스) 옮기면 화면이 달라져서 하지 않는다.
+ */
+function mkKeysOf(prm) {
+    var out = [], raw = null;
+    try { if (!prm.isTimeVarying()) return null; raw = prm.getKeys(); } catch (e) { return null; }
+    for (var k = 0; raw && k < raw.length; k++) {
+        var v = null;
+        try { v = prm.getValueAtKey(raw[k]); } catch (e2) { v = null; }
+        out.push([raw[k], v]);
+    }
+    return out;
+}
+function mkNear(a, b, tol) {
+    if (a && typeof a === "object" && a.length !== undefined) return b && typeof b === "object" && Math.abs(a[0] - b[0]) <= tol && Math.abs(a[1] - b[1]) <= tol;
+    return Math.abs(Number(a) - Number(b)) <= tol;
+}
+function mk_motionBlur(json) {
+    try {
+        var o = json ? mkParse(json) : {}, shutter = o.shutter || 180;
+        var seq = app.project.activeSequence;
+        if (!seq) return mkErr("noseq");
+        var tpf = Number(seq.timebase), qs = null;
+        try { app.enableQE(); qs = qe.project.getActiveSequence(); } catch (e0) { qs = null; }
+        var sel = mkSelected(seq), moved = 0, blurred = 0, skipped = [];
+        for (var s = 0; s < sel.length; s++) {
+            var clip = sel[s].clip, mo = mkMotionComp(clip);
+            /* 모션 키 모으기: 위치0 비율1 폭2 균일3 회전4 기준점5 */
+            var MAP = [[0, 1, "pos"], [1, 3, "scale"], [2, 4, "sw"], [4, 7, "rot"], [5, 0, "anchor"]], keyed = [], i;
+            if (mo) for (i = 0; i < MAP.length; i++) { var ks = mkKeysOf(mo.properties[MAP[i][0]]); if (ks && ks.length) keyed.push({ m: MAP[i], keys: ks }); }
+            var tfi = mkFindFx(clip, MK_SPECS.tf), tfKeyed = false;
+            if (tfi >= 0) { var tp = clip.components[tfi].properties; for (i = 0; i < tp.numItems; i++) { try { if (tp[i].isTimeVarying()) tfKeyed = true; } catch (e1) {} } }
+            if (!keyed.length) {
+                if (tfi >= 0 && tfKeyed) {     /* 이미 변형 효과로 움직임 → 셔터만 */
+                    var pr0 = clip.components[tfi].properties;
+                    mkSet(pr0[MK_TF.useComp], false); mkSet(pr0[MK_TF.shutter], shutter); blurred++;
+                } else skipped.push("nokeys");
+                continue;
+            }
+            if (tfKeyed) { skipped.push("hastf"); continue; }
+            var lay = mkLayerSize(clip, seq);
+            if (lay.src === "meta" && (Math.abs(lay.w - Number(seq.frameSizeHorizontal)) > 1 || Math.abs(lay.h - Number(seq.frameSizeVertical)) > 1)) { skipped.push("size"); continue; }
+            /* 키가 없는 모션 값이 기본값이 아니면(위치를 옮겨 둔 클립 등) 옮기지 않는다 */
+            var DEF = [[0, [0.5, 0.5]], [1, 100], [4, 0], [5, [0.5, 0.5]]], bad = false;
+            for (i = 0; i < DEF.length; i++) {
+                var pp = mo.properties[DEF[i][0]], tv = false;
+                try { tv = pp.isTimeVarying(); } catch (e2) { tv = false; }
+                if (tv) continue;
+                var cur = null;
+                try { cur = pp.getValue(); } catch (e3) { cur = null; }
+                if (cur !== null && !mkNear(cur, DEF[i][1], 0.002)) bad = true;
+            }
+            if (bad) { skipped.push("static"); continue; }
+            var en = mkEnsure(seq, qs, sel[s].t, sel[s].c, tpf, MK_SPECS.tf);
+            if (en.ci < 0) { skipped.push("notf"); continue; }
+            clip = seq.videoTracks[sel[s].t].clips[sel[s].c];
+            mo = mkMotionComp(clip);
+            var tf = clip.components[en.ci].properties, uni = true;
+            try { uni = mo.properties[3].getValue() ? true : false; } catch (e4) { uni = true; }
+            mkSet(tf[0], [0.5, 0.5]); mkSet(tf[MK_TF.pos], [0.5, 0.5]); mkSet(tf[MK_TF.uni], uni);
+            for (i = 0; i < keyed.length; i++) {
+                var dst = tf[keyed[i].m[1]], kk = keyed[i].keys;
+                try { dst.setTimeVarying(true); } catch (e5) {}
+                for (var k = 0; k < kk.length; k++) {
+                    try { dst.addKey(kk[k][0]); } catch (e6) {}
+                    try { dst.setValueAtKey(kk[k][0], kk[k][1], k === kk.length - 1 ? 1 : 0); } catch (e7) {}
+                    try { dst.setInterpolationTypeAtKey(kk[k][0], 0, 0); } catch (e8) {}
+                }
+                /* 모션 쪽은 키를 지우고 기본값으로 */
+                var src = mo.properties[keyed[i].m[0]];
+                try { src.setTimeVarying(false); } catch (e9) {}
+                mkSet(src, keyed[i].m[2] === "pos" || keyed[i].m[2] === "anchor" ? [0.5, 0.5] : keyed[i].m[2] === "rot" ? 0 : 100);
+            }
+            mkSet(tf[MK_TF.useComp], false); mkSet(tf[MK_TF.shutter], shutter);
+            moved++;
+        }
+        return mkJson({ ok: true, moved: moved, blurred: blurred, skipped: skipped, clips: sel.length });
+    } catch (e) { return mkErr("ex", String(e)); }
+}
+
+/* ---------- 조정 레이어 / 검은 화면 넣기 ----------
+ * json: { kind: "adjust" | "black", png: 검은 화면 그림 경로, dur: 선택이 없을 때 길이(초) }
+ * 선택한 클립마다 그 시작~끝 그대로, 그 구간에 아무것도 없는 위쪽 트랙에 넣는다 (없으면 트랙 추가).
+ * 선택이 없으면 재생헤드부터 dur 초.
+ */
+function mkItemsDeep(item, out) {
+    out = out || [];
+    try {
+        for (var i = 0; i < item.children.numItems; i++) {
+            var it = item.children[i];
+            out.push(it);
+            if (it.type === 2 /* BIN */) mkItemsDeep(it, out);
+        }
+    } catch (e) {}
+    return out;
+}
+function mkIsAdjust(it) {
+    try { if (it.isAdjustmentLayer && it.isAdjustmentLayer()) return true; } catch (e) {}
+    var n = "";
+    try { n = String(it.name); } catch (e2) { n = ""; }
+    return it.type === 1 && /^(adjustment layer|\uC870\uC815 \uB808\uC774\uC5B4)(\s*\d*)?$/i.test(n);
+}
+function mkBin(name) {
+    var root = app.project.rootItem;
+    for (var i = 0; i < root.children.numItems; i++) if (root.children[i].type === 2 && String(root.children[i].name) === name) return root.children[i];
+    try { var b = root.createBin(name); if (b) return b; } catch (e) {}
+    for (var j = 0; j < root.children.numItems; j++) if (root.children[j].type === 2 && String(root.children[j].name) === name) return root.children[j];
+    return root;
+}
+function mkFree(tr, s0, e0) {
+    for (var c = 0; c < tr.clips.numItems; c++) {
+        var cl = tr.clips[c];
+        if (Number(cl.end.ticks) > s0 && Number(cl.start.ticks) < e0) return false;
+    }
+    return true;
+}
+/* 구간 위에서 비어 있는 트랙: 그 구간에 클립이 있는 가장 위 트랙보다 위쪽에서 찾는다 */
+function mkFreeTrackAbove(seq, s0, e0, minT) {
+    var top = minT - 1, t;
+    for (t = 0; t < seq.videoTracks.numTracks; t++) if (!mkFree(seq.videoTracks[t], s0, e0)) top = Math.max(top, t);
+    for (t = top + 1; t < seq.videoTracks.numTracks; t++) if (mkFree(seq.videoTracks[t], s0, e0)) return t;
+    /* 빈 트랙이 없으면 맨 위에 하나 추가 */
+    var n0 = seq.videoTracks.numTracks;
+    try { app.enableQE(); qe.project.getActiveSequence().addTracks(1, n0, 0); } catch (e) {}
+    seq = app.project.activeSequence;
+    return seq.videoTracks.numTracks > n0 ? seq.videoTracks.numTracks - 1 : -1;
+}
+function mk_insertLayer(json) {
+    try {
+        var o = mkParse(json);
+        var seq = app.project.activeSequence;
+        if (!seq) return mkErr("noseq");
+        var tpf = Number(seq.timebase), item = null, i;
+        if (o.kind === "adjust") {
+            var all = mkItemsDeep(app.project.rootItem);
+            for (i = 0; i < all.length && !item; i++) if (mkIsAdjust(all[i])) item = all[i];
+            if (!item) {   /* 새로 만들 수 있는 버전이면 만든다 */
+                try { if (app.project.createNewAdjustmentLayer) item = app.project.createNewAdjustmentLayer(); } catch (eA) { item = null; }
+                if (!item) { all = mkItemsDeep(app.project.rootItem); for (i = 0; i < all.length && !item; i++) if (mkIsAdjust(all[i])) item = all[i]; }
+            }
+            if (!item) return mkErr("noadjust");
+        } else {
+            var name = String(o.png || "").replace(/^.*[\\\/]/, "");
+            var all2 = mkItemsDeep(app.project.rootItem);
+            for (i = 0; i < all2.length && !item; i++) { try { if (String(all2[i].name) === name) item = all2[i]; } catch (eN) {} }
+            if (!item) {
+                var bin = mkBin("Moment_Motion Kit");
+                try { app.project.importFiles([String(o.png)], true, bin, false); } catch (eI) { return mkErr("import", String(eI)); }
+                var inBin = mkItemsDeep(bin);
+                for (i = 0; i < inBin.length && !item; i++) { try { if (String(inBin[i].name) === name) item = inBin[i]; } catch (eM) {} }
+                if (!item) { all2 = mkItemsDeep(app.project.rootItem); for (i = 0; i < all2.length && !item; i++) { try { if (String(all2[i].name) === name) item = all2[i]; } catch (eM2) {} } }
+            }
+            if (!item) return mkErr("import");
+        }
+        /* 넣을 구간들 */
+        var sel = mkSelected(seq), ranges = [], minT = 0;
+        for (i = 0; i < sel.length; i++) { ranges.push([Number(sel[i].clip.start.ticks), Number(sel[i].clip.end.ticks)]); minT = Math.max(minT, sel[i].t + 1); }
+        if (!ranges.length) { var ph = Number(seq.getPlayerPosition().ticks); ranges.push([ph, ph + Math.round((o.dur || 5) * MK_TPS / tpf) * tpf]); }
+        ranges.sort(function (a, b) { return a[0] - b[0]; });
+        var merged = [];
+        for (i = 0; i < ranges.length; i++) {
+            var last = merged[merged.length - 1];
+            if (last && ranges[i][0] <= last[1] + tpf * 0.5) last[1] = Math.max(last[1], ranges[i][1]); else merged.push([ranges[i][0], ranges[i][1]]);
+        }
+        var done = 0, where = [], fails = [];
+        for (i = 0; i < merged.length; i++) {
+            var s0 = merged[i][0], e0 = merged[i][1];
+            var t = mkFreeTrackAbove(seq, s0, e0, minT);
+            seq = app.project.activeSequence;
+            if (t < 0) { fails.push("notrack"); continue; }
+            var tr = seq.videoTracks[t], n0 = tr.clips.numItems;
+            try { tr.overwriteClip(item, mkTime(s0)); } catch (eO) { try { tr.overwriteClip(item, s0 / MK_TPS); } catch (eO2) { fails.push("insert"); continue; } }
+            tr = app.project.activeSequence.videoTracks[t];
+            var nc = null;
+            for (var c = 0; c < tr.clips.numItems; c++) if (Math.abs(Number(tr.clips[c].start.ticks) - s0) <= tpf * 0.5) nc = tr.clips[c];
+            if (!nc) { fails.push("find"); continue; }
+            try { nc.end = mkTime(e0); } catch (eE) {}
+            if (Math.abs(Number(nc.end.ticks) - e0) > tpf * 0.5) { try { nc.end = e0 / MK_TPS; } catch (eE2) {} }
+            done++; where.push(t + 1);
+        }
+        return mkJson({ ok: true, done: done, tracks: where, fails: fails, ranges: merged.length });
+    } catch (e) { return mkErr("ex", String(e)); }
+}
+/* 패널이 검은 화면 그림을 저장할 폴더 */
+function mk_paths() {
+    try {
+        var f = new Folder(Folder.userData.fsName + "/Moment_MotionKit");
+        if (!f.exists) f.create();
+        var seq = app.project.activeSequence;
+        return mkJson({ ok: true, dir: String(f.fsName), w: seq ? Number(seq.frameSizeHorizontal) : 1920, h: seq ? Number(seq.frameSizeVertical) : 1080 });
+    } catch (e) { return mkErr("ex", String(e)); }
+}
+
 /* ---------- 선택한 클립 수 ---------- */
 function mk_selCount() {
     try {
@@ -782,8 +985,18 @@ function mk_grabFrame(json) {
 }
 /* 프로그램 모니터 화면을 PNG 로 저장. 프리미어는 확장자 없는 경로를 받아 .png 를 붙이고,
  * 버전에 따라 경로 모양(슬래시/확장자)이 다르면 예외를 내서 여러 방법을 차례로 시도한다. → { path, how, errs } */
-var MK_FRAME_N = 0;
-function mkExportFrame() {
+/* 파일이 다 써질 때까지: 크기가 두 번 연속 같으면 끝난 것으로 본다 (최대 0.6초) */
+function mkWaitStable(path) {
+    var last = -1, waited = 0;
+    while (waited < 600) {
+        var len = 0;
+        try { len = Number(new File(path).length); } catch (e) { len = 0; }
+        if (len > 0 && len === last) return;
+        last = len; $.sleep(20); waited += 20;
+    }
+}
+var MK_FRAME_N = 0, MK_FRAME_I = -1;   /* MK_FRAME_I = 지난번에 성공한 방법 번호 */
+function mkExportFrame(fast) {
     var errs = [], sep = /win/i.test(String($.os)) ? "\\" : "/";
     var natDir = String(Folder.temp.fsName), slash = natDir.replace(/\\/g, "/");
     MK_FRAME_N = (MK_FRAME_N + 1) % 1000;
@@ -794,18 +1007,21 @@ function mkExportFrame() {
         { dir: slash, s: "/", ext: ".png", how: "slash.png" },
         { dir: slash, s: "/", ext: "", how: "slash" }
     ];
-    for (var i = 0; i < tries.length; i++) {
+    var order = [0, 1, 2, 3];
+    if (fast && MK_FRAME_I > 0) order = [MK_FRAME_I].concat(MK_FRAME_I === 1 ? [0, 2, 3] : MK_FRAME_I === 2 ? [0, 1, 3] : [0, 1, 2]);
+    for (var oi = 0; oi < order.length; oi++) {
+        var i = order[oi];
         var tr = tries[i], stem = tr.dir + tr.s + base + "_" + i, arg = stem + tr.ext;
         var qs = null, tc = null;
         try { qs = qe.project.getActiveSequence(); tc = qs.CTI.timecode; } catch (e0) { errs.push("cti: " + e0); continue; }
         try { qs.exportFramePNG(tc, arg); } catch (e1) { errs.push(tr.how + ": " + e1); continue; }
-        var cands = [stem + ".png", arg, arg + ".png"], waited = 0, limit = i === 0 ? 4000 : 2500;
+        var cands = [stem + ".png", arg, arg + ".png"], waited = 0, limit = oi === 0 ? 4000 : 2500, nap = fast ? 20 : 100;
         while (waited < limit) {
             for (var k = 0; k < cands.length; k++) {
                 var f = new File(cands[k]);
-                if (f.exists && /\.png$/i.test(cands[k])) { $.sleep(150); return { path: String(f.fsName), how: tr.how, errs: errs }; }
+                if (f.exists && /\.png$/i.test(cands[k])) { if (fast) mkWaitStable(cands[k]); else $.sleep(150); MK_FRAME_I = i; return { path: String(f.fsName), how: tr.how, errs: errs }; }
             }
-            $.sleep(100); waited += 100;
+            $.sleep(nap); waited += nap;
         }
         errs.push(tr.how + ": no file");
     }
@@ -978,5 +1194,215 @@ function mk_saveSettings(json) {
         f.encoding = "UTF-8";
         f.open("w"); f.write(json); f.close();
         return mkJson({ ok: true });
+    } catch (e) { return mkErr("ex", String(e)); }
+}
+
+/* ====================== 6) 트래킹 탭 ======================
+ * 패널이 화면을 프레임마다 받아서 직접 추적하고, 계산한 키프레임을 여기서 클립에 적는다.
+ *   mk_trackTarget  선택 클립 정보(모션 값, 원본 크기, 인·아웃)
+ *   mk_trackBegin   추적하는 동안 위쪽 트랙을 잠깐 숨김   mk_trackGrab  한 프레임 캡처   mk_trackEnd  원래대로
+ *   mk_trackApply   키프레임 쓰기 (모션 / 변형 / 모퉁이 고정)  mk_trackClear  추적 키프레임 지우기
+ */
+var MK_TRK = { muted: [], ph: null, on: false };
+
+/* 클립 원본의 가로·세로 (효과 좌표의 기준). 못 읽으면 시퀀스 크기 */
+function mkLayerSize(clip, seq) {
+    var w = Number(seq.frameSizeHorizontal), h = Number(seq.frameSizeVertical), src = "seq";
+    try {
+        var pi = clip.projectItem;
+        if (pi) {
+            var md = String(pi.getProjectMetadata());
+            var m = /Column\.Intrinsic\.VideoInfo>\s*(\d+)\s*x\s*(\d+)/.exec(md);
+            if (m && Number(m[1]) > 0 && Number(m[2]) > 0) { w = Number(m[1]); h = Number(m[2]); src = "meta"; }
+        }
+    } catch (e) {}
+    return { w: w, h: h, src: src };
+}
+function mkValAt(prm, ticks) {
+    var v = null, tv = false;
+    try { tv = prm.isTimeVarying(); } catch (e0) { tv = false; }
+    if (tv) { try { v = prm.getValueAtTime(mkTime(ticks)); } catch (e) { v = null; } }
+    if (v === null || v === undefined) { try { v = prm.getValue(); } catch (e2) { v = null; } }
+    return v;
+}
+function mkMotionComp(clip) {
+    for (var i = 0; i < clip.components.numItems; i++) {
+        var m = "";
+        try { m = String(clip.components[i].matchName); } catch (e) { m = ""; }
+        if (m === "AE.ADBE Motion") return clip.components[i];
+    }
+    return null;
+}
+function mkPt(v, dx, dy) {
+    if (v instanceof Array && v.length >= 2 && typeof v[0] === "number" && typeof v[1] === "number") return [v[0], v[1]];
+    return [dx, dy];
+}
+function mkNum(v, d) { return (typeof v === "number" && isFinite(v)) ? v : d; }
+
+/* json: { at: 기준 시간(시퀀스 ticks, 없으면 재생헤드) } */
+function mk_trackTarget(json) {
+    try {
+        var o = json ? mkParse(json) : {};
+        var seq = app.project.activeSequence;
+        if (!seq) return mkErr("noseq");
+        var tpf = Number(seq.timebase), ph = Number(seq.getPlayerPosition().ticks);
+        var at = (o.at === undefined || o.at === null) ? ph : Number(o.at);
+        var sel = mkSelected(seq), clips = [];
+        for (var i = 0; i < sel.length; i++) {
+            var cl = sel[i].clip, st = Number(cl.start.ticks), en = Number(cl.end.ticks), inP = Number(cl.inPoint.ticks), spd = mkSpeed(cl);
+            var rel = Math.max(0, Math.min(en - st, at - st)), ct = inP + rel * spd;
+            var mo = mkMotionComp(cl), motion = null;
+            if (mo && mo.properties.numItems >= 6) {
+                var pr = mo.properties, uni = true;
+                try { uni = pr[3].getValue() ? true : false; } catch (e1) { uni = true; }
+                var sc = mkNum(mkValAt(pr[1], ct), 100);
+                motion = { pos: mkPt(mkValAt(pr[0], ct), 0.5, 0.5), scale: sc, scaleW: mkNum(mkValAt(pr[2], ct), sc), uni: uni,
+                           rot: mkNum(mkValAt(pr[4], ct), 0), anchor: mkPt(mkValAt(pr[5], ct), 0.5, 0.5) };
+            }
+            clips.push({ t: sel[i].t, c: sel[i].c, id: mkClipId(cl, sel[i].t, sel[i].c), name: String(cl.name),
+                start: st, end: en, inPoint: inP, speed: spd, motion: motion, layer: mkLayerSize(cl, seq) });
+        }
+        var inS = -1, outS = -1;
+        try { inS = Number(seq.getInPoint()); outS = Number(seq.getOutPoint()); } catch (e2) { inS = -1; outS = -1; }
+        return mkJson({ ok: true, fps: MK_TPS / tpf, tpf: tpf, w: Number(seq.frameSizeHorizontal), h: Number(seq.frameSizeVertical),
+            ph: ph, tracks: seq.videoTracks.numTracks, inPt: (isNaN(inS) ? -1 : inS * MK_TPS), outPt: (isNaN(outS) ? -1 : outS * MK_TPS), clips: clips });
+    } catch (e) { return mkErr("ex", String(e)); }
+}
+
+function mkTrackRestore() {
+    var seq = null;
+    try { seq = app.project.activeSequence; } catch (e) { seq = null; }
+    if (seq) {
+        try { for (var m = 0; m < MK_TRK.muted.length; m++) seq.videoTracks[MK_TRK.muted[m]].setMute(0); } catch (e2) {}
+        try { if (MK_TRK.ph !== null) seq.setPlayerPosition(String(MK_TRK.ph)); } catch (e3) {}
+    }
+    MK_TRK.muted = []; MK_TRK.ph = null; MK_TRK.on = false;
+}
+/* json: { from: 이 번호 이상의 비디오 트랙을 숨김 (붙일 대상이 화면에 찍히지 않게) } */
+function mk_trackBegin(json) {
+    try {
+        var o = mkParse(json);
+        mkTrackRestore();
+        var seq = app.project.activeSequence;
+        if (!seq) return mkErr("noseq");
+        app.enableQE();
+        var qs = qe.project.getActiveSequence();
+        if (!qs || !qs.exportFramePNG) return mkErr("noexport");
+        MK_TRK.ph = seq.getPlayerPosition().ticks; MK_TRK.on = true;
+        var from = Number(o.from);
+        if (!isNaN(from)) {
+            for (var t = Math.max(0, from); t < seq.videoTracks.numTracks; t++) {
+                var tr = seq.videoTracks[t];
+                try { if (!tr.isMuted()) { tr.setMute(1); MK_TRK.muted.push(t); } } catch (e1) {}
+            }
+        }
+        return mkJson({ ok: true, muted: MK_TRK.muted.length });
+    } catch (e) { mkTrackRestore(); return mkErr("ex", String(e)); }
+}
+/* json: { at: 시퀀스 ticks, del: 지울 이전 캡처 경로 } */
+function mk_trackGrab(json) {
+    try {
+        var o = mkParse(json);
+        var seq = app.project.activeSequence;
+        if (!seq) return mkErr("noseq");
+        if (o.del && /mmk_frame_[^\\\/]*$/.test(String(o.del))) { try { var old = new File(String(o.del)); if (old.exists) old.remove(); } catch (e0) {} }
+        seq.setPlayerPosition(String(Math.round(o.at)));
+        var got = mkExportFrame(true);
+        if (!got.path) return mkJson({ ok: false, err: "noframe", msg: got.errs.join(" / ") });
+        return mkJson({ ok: true, path: got.path });
+    } catch (e) { return mkErr("ex", String(e)); }
+}
+function mk_trackEnd(json) {
+    try {
+        var o = json ? mkParse(json) : {};
+        if (o.del && /mmk_frame_[^\\\/]*$/.test(String(o.del))) { try { var old = new File(String(o.del)); if (old.exists) old.remove(); } catch (e0) {} }
+        var had = MK_TRK.on;
+        mkTrackRestore();
+        return mkJson({ ok: true, restored: had ? 1 : 0 });
+    } catch (e) { return mkErr("ex", String(e)); }
+}
+
+/* plans: [{ t, c, target: "motion" | "tf" | "cpin", shutter, params: [{ i, n, keys: [[클립 기준 프레임, 값]] | value }] }] */
+function mk_trackApply(json) {
+    try {
+        var plans = mkParse(json);
+        var seq = app.project.activeSequence;
+        if (!seq) return mkErr("noseq");
+        var tpf = Number(seq.timebase), qs = null;
+        try { app.enableQE(); qs = qe.project.getActiveSequence(); } catch (e) { qs = null; }
+        var done = 0, failed = [], written = 0;
+        for (var p = 0; p < plans.length; p++) {
+            var pl = plans[p];
+            if (!seq.videoTracks[pl.t] || !seq.videoTracks[pl.t].clips[pl.c]) { failed.push("clip"); continue; }
+            var clip = seq.videoTracks[pl.t].clips[pl.c];
+            var inP = Number(clip.inPoint.ticks), spd = mkSpeed(clip), getter = null;
+            if (pl.target === "motion") {
+                var mo = mkMotionComp(clip);
+                if (!mo) { failed.push("nomotion"); continue; }
+                getter = mkGetter(mo.properties, "motion");
+            } else if (pl.target === "tf") {
+                var tf = mkEnsure(seq, qs, pl.t, pl.c, tpf, MK_SPECS.tf);
+                if (tf.ci < 0) { failed.push(tf.err === "noqe" ? "noqe" : "notf"); continue; }
+                var props = seq.videoTracks[pl.t].clips[pl.c].components[tf.ci].properties;
+                if (props.numItems < 11) { failed.push("tfprops"); continue; }
+                mkSet(props[MK_TF.uni], true);
+                mkSet(props[MK_TF.useComp], false);
+                mkSet(props[MK_TF.shutter], pl.shutter || 0);
+                getter = mkGetter(props, "tf");
+            } else if (pl.target === "cpin") {
+                var cp = mkEnsure(seq, qs, pl.t, pl.c, tpf, MK_SPECS.cpin);
+                if (cp.ci < 0) { failed.push(cp.err === "noqe" ? "noqe" : "nocpin"); continue; }
+                getter = mkGetter(seq.videoTracks[pl.t].clips[pl.c].components[cp.ci].properties, "cpin");
+            } else { failed.push("target"); continue; }
+            var wrote = 0;
+            for (var q = 0; q < pl.params.length; q++) {
+                var pr = pl.params[q], target = getter(pr.n, pr.i);
+                if (!target) continue;
+                mkWrite(target, pr, mkSame, inP, spd, tpf);
+                wrote++;
+            }
+            written += wrote;
+            if (wrote) done++; else failed.push("noparam");
+        }
+        return mkJson({ ok: true, done: done, failed: failed, written: written });
+    } catch (e) { return mkErr("ex", String(e)); }
+}
+
+/* 선택 클립의 추적 키프레임 지우기: 모션의 위치·비율·회전 키프레임을 지금(재생헤드) 값으로 고정하고, 모퉁이 고정 효과를 뺀다.
+ * 변형(Transform) 효과는 "선택 클립의 모션 효과 지우기"가 지운다. */
+function mk_trackClear() {
+    try {
+        var seq = app.project.activeSequence;
+        if (!seq) return mkErr("noseq");
+        var tpf = Number(seq.timebase), qs = null, ph = Number(seq.getPlayerPosition().ticks);
+        try { app.enableQE(); qs = qe.project.getActiveSequence(); } catch (e) { qs = null; }
+        var sel = mkSelected(seq), fixed = 0, removed = 0, tfLeft = 0;
+        for (var s = 0; s < sel.length; s++) {
+            var clip = sel[s].clip, st = Number(clip.start.ticks), en = Number(clip.end.ticks);
+            var ct = Number(clip.inPoint.ticks) + Math.max(0, Math.min(en - st, ph - st)) * mkSpeed(clip);
+            var mo = mkMotionComp(clip), list = [0, 1, 2, 4];
+            if (mo) {
+                for (var l = 0; l < list.length; l++) {
+                    var prm = mo.properties[list[l]], tv = false;
+                    try { tv = prm.isTimeVarying(); } catch (e1) { tv = false; }
+                    if (!tv) continue;
+                    var v = mkValAt(prm, ct);
+                    try { prm.setTimeVarying(false); } catch (e2) {}
+                    if (v !== null && v !== undefined) mkSet(prm, v);
+                    fixed++;
+                }
+            }
+            if (mkFindFx(clip, MK_SPECS.tf) >= 0) tfLeft++;
+            var qi = qs ? mkQeItem(qs, sel[s].t, clip, tpf) : null, dom = 0, kill = [], i;
+            for (i = 0; i < clip.components.numItems; i++) if (MK_SPECS.cpin.ok(String(clip.components[i].matchName))) dom++;
+            if (qi && dom) {
+                try { for (i = 0; i < qi.numComponents; i++) if (mkScanName(MK_SPECS.cpin, String(qi.getComponentAt(i).name))) kill.push(i); } catch (e3) { kill = []; }
+                if (kill.length === dom) {
+                    kill.sort(function (a, b) { return b - a; });
+                    for (i = 0; i < kill.length; i++) { try { qi.getComponentAt(kill[i]).remove(); removed++; } catch (e4) {} }
+                }
+            }
+        }
+        return mkJson({ ok: true, clips: sel.length, fixed: fixed, removed: removed, tf: tfLeft });
     } catch (e) { return mkErr("ex", String(e)); }
 }

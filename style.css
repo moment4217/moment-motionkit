@@ -324,7 +324,7 @@ main#full { display: flex; flex-direction: column; overflow: hidden; padding: 8p
 .grid .found { grid-column: 1 / -1; font-size: 11px; color: var(--dim); margin: 0 2px; }
 
 /* 촘촘한 효과 카드 */
-.grid { grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 5px; }
+.grid { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 5px; }
 .cardP { padding: 5px; gap: 3px; border-radius: 7px; }
 .cardP canvas { border-radius: 3px; }
 .cardP .nm { font-size: 11.5px; }
@@ -360,7 +360,7 @@ main#full { display: flex; flex-direction: column; overflow: hidden; padding: 8p
 @media (max-width: 300px) {
   header { padding: 6px; } .tab { padding: 3px 6px; font-size: 11px; }
   .icon { padding: 2px 4px; }
-  .grid { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
   .foldBtn { padding: 5px 5px; }
   .btnPair { flex-direction: column; }
   #tab-fx .fxSearchRow { flex-wrap: wrap; } #tab-fx .fxSearchRow input { flex-basis: 100%; }
@@ -372,3 +372,65 @@ html[lang=en] .opts.compact .row > label { width: 50px; }
 html[lang=en] .opts.compact #zoomRow > label { width: 66px; }
 html[lang=en] .opts.compact .row > label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 480px) { html[lang=en] .clearTop .lg { display: none; } html[lang=en] .clearTop .sh { display: inline; } }
+
+/* ---------- 트래킹 탭 ---------- */
+#tab-track .row > label { width: 58px; }
+#tab-track .seg button { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; padding: 3px 4px; }
+.trkHelp { margin: 2px 0 6px; line-height: 1.5; color: var(--text); opacity: .82; }
+.trkCard .head small { text-align: right; }
+.trkCard .head small.ok { color: var(--ok); }
+.trkVal { width: 40px; text-align: right; color: var(--text); flex: none; font-size: 11px; }
+.trkCard .btnPair { margin-top: 8px; }
+.trkCard.off .row, .trkCard.off #btnTrkApply { opacity: .5; }
+.trkBox { display: none; position: fixed; left: 0; top: 0; right: 0; bottom: 0; z-index: 60; background: rgba(0, 0, 0, .78); padding: 10px;
+  align-items: center; justify-content: center; }
+.trkBox.show { display: flex; }
+.trkPanel { background: var(--panel); border: 1px solid var(--accent2); border-radius: 10px; padding: 10px; width: 100%; max-width: 900px;
+  max-height: 100%; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,.6); }
+.trkWrap { background: #000; border-radius: 4px; padding: 4px; min-height: 0; display: flex; justify-content: center; }
+#trkCv { display: block; max-width: 100%; max-height: 66vh; cursor: crosshair; user-select: none; touch-action: none; }
+.trkBox.run #trkCv { cursor: progress; }
+.trkBar { height: 4px; border-radius: 2px; background: #161616; margin-top: 6px; overflow: hidden; }
+.trkBar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .12s linear; }
+
+/* ---------- v1.7.0: 커브 썸네일 · 구간 고르기 · 빠르게 넣기 · 모션블러 ---------- */
+#cv { max-height: 22vh; }
+.cvBar { display: flex; align-items: center; gap: 6px; margin: 3px 0 3px; }
+.cvBar .readout { flex: 1; min-width: 0; margin: 0; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cvBar .chipA { padding: 2px 8px; }
+.curveRow { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.curveRow .seg { min-width: 0; }
+.curveRow .seg button { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; padding: 3px 4px; }
+.blurBtn { flex: none; padding: 4px 10px; font-size: 11px; white-space: nowrap; }
+.blurBtn:hover { border-color: var(--accent2); }
+.curveGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 4px; margin-bottom: 8px; }
+.curveItem { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px 3px; border-radius: 6px;
+  background: #1a1a1a; border: 1px solid transparent; color: var(--dim); min-width: 0; }
+.curveItem canvas { width: 100%; max-width: 72px; height: auto; display: block; }
+.curveItem span { font-size: 10px; line-height: 1.2; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.curveItem:hover { border-color: #4a4a4a; color: var(--text); }
+.curveItem.on { border-color: var(--accent2); background: #232a3d; color: #fff; }
+.curveItem.mine { border-style: dashed; border-color: #555; }
+.curveItem.mine.on { border-color: var(--accent2); }
+.segBox .pickPanel { max-width: 520px; }
+.segList { overflow-y: auto; min-height: 0; flex: 1; max-height: calc(100vh - 140px); display: flex; flex-direction: column; gap: 6px; padding: 2px 0; }
+.segRow { background: #1a1a1a; border-radius: 6px; padding: 6px; }
+.segName { font-size: 11.5px; color: var(--text); margin-bottom: 4px; display: flex; justify-content: space-between; gap: 6px; }
+.segName small { color: var(--dim); font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.segChips { display: flex; flex-wrap: wrap; gap: 3px; }
+.segChip { padding: 2px 7px; border-radius: 10px; background: #222; border: 1px solid #383838; color: var(--dim); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.segChip.on { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+.quickCard .head small { text-align: right; }
+.quickRow { display: flex; gap: 6px; }
+.quickRow button { flex: 1; min-width: 0; padding: 6px 4px; font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.quickRow button:hover { border-color: var(--accent2); color: #fff; }
+.quickRow button.busy { opacity: .5; pointer-events: none; }
+@media (max-width: 300px) { #tab-curve .btnPair { flex-direction: row; } .blurBtn { padding: 4px 6px; } #cv { max-height: 18vh; } }
+/* 작은 카드: 한글 이름은 다 보이게, 영문은 남는 자리만 */
+.cardP .hd .nm { flex: none; max-width: 100%; }
+.cardP .hd .en { flex: 1 1 0; min-width: 0; }
+.cardP .badge { font-size: 9px; padding: 0 4px; top: 7px; left: 7px; }
+.curveGrid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+.curveItem span { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: center; font-size: 10px; }
+.quickCard .head > span { flex: none; white-space: nowrap; }
+.quickCard .head small { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-left: 8px; }

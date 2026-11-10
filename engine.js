@@ -28,15 +28,46 @@
     back:  [0.3, 1.5, 0.6, 1]
   };
 
-  /* 커브 탭 기본 커브 */
+  /* 커브 탭 기본 커브 — 배열 = 베지어 [x1,y1,x2,y2], 객체 = 모양이 정해진 곡선 { f: 'spring'|'elastic'|'bounce', rev } */
   var CURVES = [
-    { name: '선형',      c: EASES.lin },
-    { name: '부드럽게',  c: EASES.inout },
-    { name: '감속',      c: EASES.out },
-    { name: '가속',      c: EASES.in },
-    { name: '강한 감속', c: EASES.expo },
-    { name: '오버슈트',  c: EASES.back }
+    { id: 'lin',     name: '선형',         en: 'Linear',      c: EASES.lin,              desc: '일정한 속도' },
+    { id: 'smooth',  name: '부드럽게 멈춤', en: 'Smooth stop', c: EASES.out,              desc: '빠르게 출발해 부드럽게 멈춤' },
+    { id: 'spring',  name: '튕기며 멈춤',   en: 'Spring stop', c: { f: 'spring' },        desc: '빠르게 출발해 튕기듯 멈춤' },
+    { id: 'balance', name: '균형',         en: 'Balanced',    c: [0.65, 0, 0.35, 1],     desc: '천천히 출발 → 빨라졌다 → 부드럽게 멈춤' },
+    { id: 'slow',    name: '천천히 출발',   en: 'Slow start',  c: EASES.in,               desc: '천천히 출발해 점점 빨라짐' },
+    { id: 'soft',    name: '부드럽게',      en: 'Ease in-out', c: EASES.inout,            desc: '양쪽 다 부드럽게' },
+    { id: 'expo',    name: '강한 감속',     en: 'Strong ease', c: EASES.expo,             desc: '확 나갔다가 길게 멈춤' },
+    { id: 'back',    name: '오버슈트',      en: 'Overshoot',   c: EASES.back,             desc: '살짝 지나쳤다 돌아옴' },
+    { id: 'elastic', name: '탄성',         en: 'Elastic',     c: { f: 'elastic' },       desc: '고무줄처럼 여러 번 출렁이며 멈춤' },
+    { id: 'bounce',  name: '통통',         en: 'Bounce',      c: { f: 'bounce' },        desc: '바닥에 튕기듯 통통 멈춤' }
   ];
+  /* 모양이 정해진 곡선 (0→1) */
+  var SHAPES = {
+    spring: function (x) { var k = 1 - Math.exp(-6) * Math.cos(12); return (1 - Math.exp(-6 * x) * Math.cos(12 * x)) / k; },
+    elastic: function (x) { if (x <= 0) return 0; if (x >= 1) return 1; return Math.pow(2, -10 * x) * Math.sin((x * 10 - 0.75) * (2 * Math.PI / 3)) + 1; },
+    bounce: function (x) {
+      var n1 = 7.5625, d1 = 2.75;
+      if (x < 1 / d1) return n1 * x * x;
+      if (x < 2 / d1) { x -= 1.5 / d1; return n1 * x * x + 0.75; }
+      if (x < 2.5 / d1) { x -= 2.25 / d1; return n1 * x * x + 0.9375; }
+      x -= 2.625 / d1; return n1 * x * x + 0.984375;
+    }
+  };
+  function isShape(c) { return !!(c && !Array.isArray(c) && typeof c === 'object' && SHAPES[c.f]); }
+  /* 곡선 뒤집기 (끝 → 시작) */
+  function reverseCurve(c) {
+    if (isShape(c)) return { f: c.f, rev: !c.rev };
+    return [Math.round((1 - c[2]) * 100) / 100, Math.round((1 - c[3]) * 100) / 100, Math.round((1 - c[0]) * 100) / 100, Math.round((1 - c[1]) * 100) / 100];
+  }
+  function sameCurve(a, b) {
+    if (isShape(a) || isShape(b)) return isShape(a) && isShape(b) && a.f === b.f && !!a.rev === !!b.rev;
+    if (!a || !b) return false;
+    for (var i = 0; i < 4; i++) if (Math.abs(a[i] - b[i]) > 0.005) return false;
+    return true;
+  }
+  function isLinear(c) { return Array.isArray(c) && sameCurve(c, EASES.lin); }
+  /* 그림용: 곡선을 n 칸으로 */
+  function curveSamples(c, n) { var f = easeFn(c), out = []; for (var i = 0; i <= n; i++) out.push([i / n, f(i / n)]); return out; }
 
   function bezier(x1, y1, x2, y2) {
     if (x1 === y1 && x2 === y2) return function (x) { return x; };
@@ -66,6 +97,7 @@
   }
   var easeCache = {};
   function easeFn(e) {
+    if (isShape(e)) { var sh = SHAPES[e.f]; return e.rev ? function (x) { return 1 - sh(1 - x); } : sh; }
     if (Array.isArray(e)) return bezier(e[0], e[1], e[2], e[3]);
     if (!easeCache[e]) { var c = EASES[e] || EASES.lin; easeCache[e] = bezier(c[0], c[1], c[2], c[3]); }
     return easeCache[e];
@@ -127,12 +159,60 @@
    * "자르기(Crop) 오른쪽" 값을 글자 폭만큼 한 칸씩 줄이며 왼쪽부터 드러낸다.
    * 글자 영역(중심·폭)은 자동 추정 — 안 맞으면 패널의 타이핑 설정에서 조정.
    */
+  /* 글자 폭 (글자 크기 대비, 굵은 고딕 기준 대략) */
+  var NARROW = /[iIl!|.,:;'`]/, SEMI = /[fjrt\-()\[\]"]/, WIDE = /[mwMW@%]/;
   function charWeight(ch) {
-    if (/\s/.test(ch)) return 0.35;
-    if (/[ᄀ-ᇿ㄰-㆏가-힯぀-ヿ一-鿿＀-￯]/.test(ch)) return 1;
-    if (/[.,'"!?:;|`·]/.test(ch)) return 0.3;
-    if (/[A-Z0-9MW@#%&]/.test(ch)) return 0.66;
-    return 0.55;
+    if (/\s/.test(ch)) return 0.3;
+    if (/[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF\u3040-\u30FF\u4E00-\u9FFF]/.test(ch)) return 0.92;
+    if (/[\uFF00-\uFFEF]/.test(ch)) return 0.92;
+    if (NARROW.test(ch)) return 0.28;
+    if (SEMI.test(ch)) return 0.38;
+    if (WIDE.test(ch)) return 0.88;
+    if (/[A-Z]/.test(ch)) return 0.7;
+    if (/[0-9]/.test(ch)) return 0.56;
+    if (/[?·~]/.test(ch)) return 0.55;
+    return 0.58;
+  }
+  /* 캡처한 글자 영역의 "세로 줄별 글자 양"(ink)으로 글자 사이 경계를 찾는다.
+   * 후보 = 글자 양이 주변보다 적은 곳(빈 틈이면 가장 좋음). 예상 글자 폭과 가장 잘 맞는 조합을 고른다(동적 계획법).
+   * exp = 글자(띄어쓰기는 다음 글자에 포함)마다 예상 폭(%), 반환 = 경계 위치들(%) (마지막 = R) */
+  var MK_WC = 2, MK_WI = 6;
+  function fitBounds(ink, L, R, exp) {
+    var m = exp.length, out = [], k;
+    if (m <= 1 || !ink || !ink.v || !ink.v.length) { var acc = 0; for (k = 0; k < m; k++) { acc += exp[k]; out.push(L + acc); } out[m - 1] = R; return out; }
+    var v = ink.v, n = v.length, a = Math.max(1, Math.floor(L / 100 * n)), b = Math.min(n - 2, Math.ceil(R / 100 * n)), mx = 1, j;
+    for (j = a; j <= b; j++) if (v[j] > mx) mx = v[j];
+    /* 후보: 글자 양이 낮은 구간(평평한 골짜기)의 가운데 */
+    var cand = [], st = -1;
+    for (j = a; j <= b; j++) {
+      var isMin = v[j] <= v[j - 1] && v[j] <= v[j + 1];
+      if (isMin && st < 0) st = j;
+      if ((!isMin || j === b) && st >= 0) {
+        var e = isMin ? j : j - 1, lo = Infinity;
+        for (var q = st; q <= e; q++) if (v[q] < lo) lo = v[q];
+        cand.push({ x: (st + e + 1) / 2 / n * 100, c: lo / mx });
+        st = -1;
+      }
+    }
+    var C = cand.length; if (!C) return fitBounds(null, L, R, exp);
+    /* best[k][i] = 앞의 k+1 글자를 후보 i 에서 끊을 때 최소 비용 */
+    var W = MK_WI, WC = MK_WC, best = [], from = [], i, i2;
+    function wcost(len, e) { var d = (len - e) / Math.max(e, 0.3); return WC * d * d; }
+    for (k = 0; k < m - 1; k++) {
+      best.push([]); from.push([]);
+      for (i = 0; i < C; i++) {
+        var x = cand[i].x, bc = Infinity, bf = -1;
+        if (k === 0) bc = wcost(x - L, exp[0]);
+        else for (i2 = 0; i2 < i; i2++) { var pc = best[k - 1][i2]; if (pc === Infinity) continue; var cc = pc + wcost(x - cand[i2].x, exp[k]); if (cc < bc) { bc = cc; bf = i2; } }
+        best[k].push(bc === Infinity ? Infinity : bc + W * cand[i].c); from[k].push(bf);
+      }
+    }
+    var end = Infinity, ei = -1;
+    for (i = 0; i < C; i++) { var tc = best[m - 2][i]; if (tc === Infinity) continue; tc += wcost(R - cand[i].x, exp[m - 1]); if (tc < end) { end = tc; ei = i; } }
+    if (ei < 0) return fitBounds(null, L, R, exp);
+    var idx = [ei]; for (k = m - 2; k > 0; k--) idx.unshift(from[k][idx[0]]);
+    out = idx.map(function (q) { return cand[q].x; }); out.push(R);
+    return out;
   }
   function typingLayout(text, ctx, ty, area) {
     ty = ty || {};
@@ -145,10 +225,28 @@
     var center = ty.center == null || ty.center === '' ? 50 : Number(ty.center);
     var L = Math.max(0, center - width / 2), R = Math.min(100, center + width / 2);
     /* 자동 측정한 글자 범위가 있으면 그걸 우선 (수동 폭을 넣었으면 수동 우선) */
-    if (area && !(ty.width > 0)) {
-      L = Math.max(0, area.L - 0.5); R = Math.min(100, area.R + 0.5); width = R - L; auto = width;
+    var measured = !!(area && !(ty.width > 0));
+    if (measured) { L = Math.max(0, area.L - 0.3); R = Math.min(100, area.R + 0.3); width = R - L; auto = width; }
+    /* 글자마다 끝나는 위치(화면 %) — 측정값이 있으면 실제 글자 사이 틈에 맞춘다 */
+    var vis = [], exp = [], pend = 0, i;
+    for (i = 0; i < chars.length; i++) {
+      pend += weights[i];
+      if (!/\s/.test(chars[i])) { vis.push(i); exp.push((R - L) * pend / total); pend = 0; }
     }
-    return { chars: chars, weights: weights, total: total, auto: Math.round(auto), width: width, L: L, R: R, measured: !!(area && !(ty.width > 0)) };
+    if (pend && exp.length) exp[exp.length - 1] += (R - L) * pend / total;
+    var cuts = fitBounds(measured ? area.ink : null, L, R, exp), bounds = [], snapped = measured && area.ink ? Math.max(0, cuts.length - 1) : 0, vk = 0, last = L;
+    for (i = 0; i < chars.length; i++) {
+      if (vk < vis.length && vis[vk] === i) { last = cuts[vk]; vk++; }
+      bounds.push(last);
+    }
+    return { chars: chars, weights: weights, total: total, auto: Math.round(auto), width: width, L: L, R: R, measured: measured,
+      bounds: bounds, snapped: snapped };
+  }
+  /* 실제로 한 칸씩 나타나는 글자 (띄어쓰기는 다음 글자와 같이 → 박자가 일정) */
+  function typingSteps(lay) {
+    var out = [];
+    for (var i = 0; i < lay.chars.length; i++) if (!/\s/.test(lay.chars[i])) out.push(i);
+    return out.length ? out : [lay.chars.length - 1];
   }
   /* 타이핑할 문장: 직접 입력 > 자막에서 읽은 글자 > 클립 이름 */
   var DEFAULT_NAMES = /^(graphic|graphics|text|title|\uADF8\uB798\uD53D|\uD14D\uC2A4\uD2B8|\uC81C\uBAA9|\uC0C8 \uD14D\uC2A4\uD2B8 \uB808\uC774\uC5B4|shape)\s*\d*$/i;
@@ -160,16 +258,35 @@
   }
   function typingSpec(src, ctx, ty, erase, area) {
     var text = src && src.text !== undefined ? src.text : src;
-    var lay = typingLayout(text, ctx, ty, area), fpc = (ty && ty.fpc) || 2;
-    var keys = [[0, 100 - lay.L, 'hold']], acc = 0;
-    for (var i = 0; i < lay.chars.length; i++) {
-      acc += lay.weights[i];
-      var right = 100 - (lay.L + (lay.R - lay.L) * acc / lay.total);
-      keys.push([(i + 1) * fpc, i === lay.chars.length - 1 ? 0 : Math.max(0, right), 'hold']);
-    }
+    var lay = typingLayout(text, ctx, ty, area), fpc = (ty && ty.fpc) || 4, steps = typingSteps(lay);
+    var keys = [[0, 100 - lay.L, 'hold']];
+    steps.forEach(function (ci, k) {
+      var last = k === steps.length - 1;
+      keys.push([(k + 1) * fpc, last ? 0 : Math.max(0, 100 - lay.bounds[ci]), last ? undefined : 'hold']);
+    });
     keys[keys.length - 1] = [keys[keys.length - 1][0], keys[keys.length - 1][1]];
     var spec = { tracks: {}, fx: [{ fx: 'crop', tracks: { Right: keys }, set: { Left: 0, Top: 0, Bottom: 0 } }] };
     return erase ? mirrorSpec(spec) : spec;
+  }
+  /* 타이핑 커서 (복제 트랙용): 복제본을 흰 막대로 만들어 글자 끝을 따라가고, 다 쓰면 깜빡이다 사라짐 */
+  function cursorSpec(src, ctx, ty, area) {
+    var text = src && src.text !== undefined ? src.text : src;
+    var lay = typingLayout(text, ctx, ty, area), fpc = (ty && ty.fpc) || 4, steps = typingSteps(lay);
+    var bw = Math.max(0.35, 5 / ((ctx && ctx.w) || 1920) * 100), gap = 0.25;
+    var T = area ? Math.max(0, area.T - 0.8) : 42, B = area ? Math.min(100, area.B + 0.8) : 58;
+    var xs = [lay.L].concat(steps.map(function (ci) { return lay.bounds[ci]; }));
+    var Lk = [], Rk = [];
+    xs.forEach(function (x, k) {
+      var l = Math.min(100 - bw, x + gap);
+      Lk.push([k * fpc, l, 'hold']); Rk.push([k * fpc, Math.max(0, 100 - l - bw), 'hold']);
+    });
+    var end = steps.length * fpc, op = [[0, 100, 'hold']];
+    for (var b = 0; b < 4; b++) { op.push([end + 8 + b * 16, 0, 'hold']); op.push([end + 16 + b * 16, b === 3 ? 0 : 100, 'hold']); }
+    op[op.length - 1] = [op[op.length - 1][0], 0];
+    return { below: 'need', tracks: { op: op }, fx: [
+      { fx: 'ramp', set: { StartColor: { color: [255, 255, 255, 255] }, EndColor: { color: [255, 255, 255, 255] }, Blend: 0 } },
+      { fx: 'crop', fxOnly: true, tracks: { Left: Lk, Right: Rk }, set: { Top: T, Bottom: 100 - B } }
+    ] };
   }
 
   /* ---------------- 프리셋 ----------------
@@ -450,6 +567,8 @@
       build: function (clip, opts, ctx) { var ty = opts.typing || {}; return typingSpec(typingText(clip, ty), ctx, ty, false, clip.area); } },
     { id: 'typingerase', cat: 'caption', group: 'typing', v: '지우기', name: '타이핑 지우기', desc: '끝에서 한 글자씩 지워짐', mode: 'out', typing: true, needsArea: true,
       build: function (clip, opts, ctx) { var ty = opts.typing || {}; return typingSpec(typingText(clip, ty), ctx, ty, true, clip.area); } },
+    { id: 'typingcursor', cat: 'caption', group: 'typing', v: '커서', name: '타이핑 커서', desc: '복제 트랙용 · 글자 끝을 따라가는 깜빡이 커서', mode: 'in', typing: true, needsArea: true, dup: true,
+      build: function (clip, opts, ctx) { var ty = opts.typing || {}; return cursorSpec(typingText(clip, ty), ctx, ty, clip.area); } },
     { id: 'fill_up', cat: 'caption', group: 'fill', v: '직선', name: '색 차오르기 (직선)', desc: '아래에서 위로 색이 차오름 · 복제 트랙용', mode: 'in', dup: true, needsArea: true,
       build: function (clip, opts, ctx) { return fillSpec('up', opts.autoArea === false ? null : clip.area, FILL_COLORS[opts.fillColor] || FILL_COLORS.yellow, ctx); } },
     { id: 'fill_wave', cat: 'caption', group: 'fill', v: '곡선', name: '색 차오르기 (곡선)', desc: '물결치며 색이 차오름 · 복제 트랙용', mode: 'in', dup: true, needsArea: true,
@@ -704,6 +823,8 @@
       /* 지속 시간: opts.dur(초)이 있으면 그 길이에 맞춰 늘이고 줄인다. 없으면 프리셋 기본 길이 × 속도 */
       var durF = opts.dur > 0 ? opts.dur * ctx.fps : 0;
       var stretch = durF && L > 0 ? durF / L : d * fpsK;
+      /* 타이핑은 "글자당 프레임"이 속도를 정함 (전체 길이/속도 설정으로 다시 줄이거나 늘이지 않음) */
+      if (spec.typing) stretch = fpsK;
       var rateEnd = last;
       if (mode === 'rate') {
         base = anchor; tm = 1; rateEnd = durF ? Math.min(last, Math.round(base + durF)) : last;
@@ -765,11 +886,11 @@
   /* ---------------- 지속 시간 ---------------- */
   /* 카드에 보여줄 길이(초). null = 클립 끝까지 */
   function durationOf(preset, opts, text) {
-    if (opts.dur > 0) return opts.dur;
+    if (opts.dur > 0 && !preset.typing) return opts.dur;
     if (preset.mode === 'span' || preset.mode === 'loop' || preset.mode === 'rate') return null;
     if (preset.zoomRate && opts.zoomRate > 0) return null;
     var spec = preset.build ? merge(preset, preset.build({ name: text || PREVIEW_TEXT }, opts, { w: 1920, h: 1080 })) : preset;
-    return lastFrameOf(spec) * SPEED[(opts.speed || 3) - 1] / 30;
+    return lastFrameOf(spec) * (preset.typing ? 1 : SPEED[(opts.speed || 3) - 1]) / 30;
   }
   /* 슬라이더 위치(0~1000) ↔ 초 (0.1초~5초, 짧은 쪽을 넓게) */
   var DMIN = 0.1, DMAX = 5;
@@ -871,12 +992,16 @@
   }
 
   /* scope: 'all' = 모든 구간 / 'playhead' = 재생헤드가 있는 구간만 */
-  function bakeCurve(read, curve, stepFrames, kinds, snaps, scope) {
-    var fn = easeFn(curve), writes = [], tol = read.tpf / 4;
+  /* pick: { 'clipId|ci|pi': [구간 번호...] } — 있으면 그 구간만 (Super Pad 의 "All 끄기") */
+  function bakeCurve(read, curve, stepFrames, kinds, snaps, scope, pick) {
+    var fn = easeFn(curve), writes = [], tol = read.tpf / 4, lin = isLinear(curve);
     read.clips.forEach(function (clip) {
       var step = read.tpf * (clip.speed || 1) * (stepFrames || 1);
       clip.params.forEach(function (prm) {
-        if (!kinds[prm.kind] || prm.keys.length < 2 || !numeric(prm.keys[0][1])) return;
+        var pk = pick ? pick[clip.id + '|' + prm.ci + '|' + prm.pi] : null;
+        if (pick && !pk) return;
+        if (!pick && kinds && !kinds[prm.kind]) return;
+        if (prm.keys.length < 2 || !numeric(prm.keys[0][1])) return;
         var orig = originals(clip, prm, snaps, tol);
         if (orig.length < 2) return;
         var set = [], segs = [];
@@ -884,16 +1009,17 @@
           set.push([orig[i][0], orig[i][1]]);
           if (i === orig.length - 1) break;
           var a = orig[i], b = orig[i + 1], len = b[0] - a[0];
-          if (scope === 'playhead' && !(clip.ph >= a[0] && clip.ph < b[0])) continue;
+          if (pk && pk.indexOf(i) < 0) continue;
+          if (!pk && scope === 'playhead' && !(clip.ph >= a[0] && clip.ph < b[0])) continue;
           segs.push([a[0], b[0]]);
-          if (eqVal(a[1], b[1]) || len < step * 1.5) continue;
+          if (lin || eqVal(a[1], b[1]) || len < step * 1.5) continue;
           for (var tk = a[0] + step; tk < b[0] - step * 0.5; tk += step) {
             set.push([Math.round(tk), round(lerp(a[1], b[1], fn((tk - a[0]) / len)), 6)]);
           }
         }
         if (!segs.length) return;
         var rem = removals(prm.keys, orig, tol);
-        if (scope === 'playhead') rem = rem.filter(function (t) {
+        if (scope === 'playhead' || pk) rem = rem.filter(function (t) {
           return segs.some(function (g) { return t > g[0] && t < g[1]; });
         });
         writes.push({ t: clip.t, c: clip.c, ci: prm.ci, pi: prm.pi, remove: rem, set: set });
@@ -923,7 +1049,7 @@
     SUB: { '지속': 'Ongoing', '순간': 'Moment' },
     V: { '1단': '1-step', '2단': '2-step', '블러 in': 'blur in', '또잉': 'boing', '옆': 'side', '위': 'up', '박힘': 'hit', '+흔들': '+shake',
       '도장': 'stamp', '확대': 'grow', '축소': 'shrink', '짧게': 'short', '강하게': 'strong', '기본': 'normal', '블러': 'blur', '업': 'up',
-      '다운': 'down', '쓰기': 'type', '지우기': 'erase', '직선': 'straight', '곡선': 'wave', '왼→오': 'L→R', '위→아래': 'top→bottom',
+      '다운': 'down', '쓰기': 'type', '지우기': 'erase', '커서': 'cursor', '직선': 'straight', '곡선': 'wave', '왼→오': 'L→R', '위→아래': 'top→bottom',
       '우→좌': 'R→L', '좌→우': 'L→R', '1번': '1x', '2번': '2x', '3번': '3x', '유지': 'hold', '복귀': 'return' },
     G: { zoom: 'Slowly to clip end', quick: 'A sudden pull', punch: 'Pops in and holds', whip: 'Flies in and out big (blur option)',
       sslide: 'Slides in from the side', drama: 'Sudden zoom + jolt', d_soft: 'Fades in and out softly', d_blur: 'Melts through blur',
@@ -969,7 +1095,7 @@
       slideblur: ['Side Slide (Blur)', 'Lands from the side with a trail'], fadeup: ['Fade Up', 'Rises slightly while appearing'],
       fadedown: ['Fade Down', 'Sinks while disappearing at the end'], rotpop: ['Spin Pop', 'Spins and pops out'],
       swing: ['Swing', 'Swings side to side and settles'], typing: ['Typewriter', 'One character at a time'],
-      typingerase: ['Typewriter Erase', 'Erased one character at a time at the end'],
+      typingerase: ['Typewriter Erase', 'Erased one character at a time at the end'], typingcursor: ['Typing Cursor', 'For a duplicate track · blinking cursor that follows the text'],
       fill_up: ['Color Fill (Straight)', 'Color rises from bottom to top · duplicate track'], fill_wave: ['Color Fill (Wave)', 'Color rises in waves · duplicate track'],
       fill_lr: ['Color Fill (L→R)', 'Color fills from left to right · duplicate track'], fill_down: ['Color Fill (Top→Bottom)', 'Color pours down from the top · duplicate track'],
       blurin: ['Blur In', 'Appears from blur to sharp'], blurout: ['Blur Out', 'Blurs away at the end'],
@@ -989,11 +1115,630 @@
   function setPreviewText(t) { PREVIEW_TEXT = t || '모먼트 모션킷'; }
 
   return {
-    EN: EN, setPreviewText: setPreviewText,
+    EN: EN, setPreviewText: setPreviewText, _tune: function (wc, wi) { MK_WC = wc; MK_WI = wi; },
     EASES: EASES, CURVES: CURVES, CATS: CATS, PRESETS: PRESETS, GROUPS: GROUPS, DEFAULT_FAVS: DEFAULT_FAVS,
     SIZE: SIZE, SPEED: SPEED, FXP: FXP,
-    bezier: bezier, easeFn: easeFn, getPreset: getPreset, typingLayout: typingLayout, typingText: typingText, durationOf: durationOf, FILL_COLORS: FILL_COLORS,
+    bezier: bezier, easeFn: easeFn, reverseCurve: reverseCurve, sameCurve: sameCurve, isShape: isShape, isLinear: isLinear, curveSamples: curveSamples, getPreset: getPreset, typingLayout: typingLayout, typingSteps: typingSteps, fitBounds: fitBounds, typingText: typingText, durationOf: durationOf, FILL_COLORS: FILL_COLORS,
     secToPos: secToPos, posToSec: posToSec,
     buildPlan: buildPlan, preview: preview, bakeCurve: bakeCurve, restoreCurve: restoreCurve
+  };
+});
+/* Moment_Motion Kit — 추적 엔진 (track-engine.js)
+ * 화면의 한 영역을 프레임마다 직접 따라가서
+ *   - 위치만 (translation)
+ *   - 위치·비율·회전 (similarity)
+ *   - 네 모서리 원근 (homography)
+ * 를 구합니다. 외부 라이브러리 없음. 브라우저(CEP 패널) / Node 양쪽에서 동작.
+ *
+ * 방식: 영역 안에서 무늬가 뚜렷한 점들을 고르고(Shi-Tomasi),
+ *       피라미드 Lucas-Kanade 로 다음 프레임에서 찾은 뒤(앞뒤 검증),
+ *       튀는 점을 걸러내며(RANSAC) 기준 프레임 → 현재 프레임 변환을 맞춥니다.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.MKTrack = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  // ───────────────────────── 이미지 ─────────────────────────
+  function grayFromRGBA(rgba, w, h) {
+    var g = new Float32Array(w * h);
+    for (var i = 0, j = 0; i < g.length; i++, j += 4) {
+      g[i] = 0.299 * rgba[j] + 0.587 * rgba[j + 1] + 0.114 * rgba[j + 2];
+    }
+    return { w: w, h: h, d: g };
+  }
+
+  function downsample(img) {
+    var w = img.w, h = img.h, s = img.d;
+    var tmp = new Float32Array(w * h);
+    var x, y, i;
+    // 가로 [1 4 6 4 1]/16
+    for (y = 0; y < h; y++) {
+      var o = y * w;
+      for (x = 0; x < w; x++) {
+        var x0 = x - 2 < 0 ? 0 : x - 2, x1 = x - 1 < 0 ? 0 : x - 1;
+        var x3 = x + 1 >= w ? w - 1 : x + 1, x4 = x + 2 >= w ? w - 1 : x + 2;
+        tmp[o + x] = (s[o + x0] + 4 * s[o + x1] + 6 * s[o + x] + 4 * s[o + x3] + s[o + x4]) * 0.0625;
+      }
+    }
+    var nw = (w + 1) >> 1, nh = (h + 1) >> 1;
+    var out = new Float32Array(nw * nh);
+    for (y = 0; y < nh; y++) {
+      var yy = y * 2;
+      var y0 = yy - 2 < 0 ? 0 : yy - 2, y1 = yy - 1 < 0 ? 0 : yy - 1;
+      var y3 = yy + 1 >= h ? h - 1 : yy + 1, y4 = yy + 2 >= h ? h - 1 : yy + 2;
+      for (x = 0; x < nw; x++) {
+        var xx = x * 2;
+        out[y * nw + x] = (tmp[y0 * w + xx] + 4 * tmp[y1 * w + xx] + 6 * tmp[yy * w + xx] +
+          4 * tmp[y3 * w + xx] + tmp[y4 * w + xx]) * 0.0625;
+      }
+    }
+    return { w: nw, h: nh, d: out };
+  }
+
+  function buildPyramid(img, levels) {
+    var pyr = [img];
+    for (var i = 1; i < levels; i++) {
+      var p = pyr[i - 1];
+      if (p.w < 32 || p.h < 32) break;
+      pyr.push(downsample(p));
+    }
+    return pyr;
+  }
+
+  function sample(img, x, y) {
+    var w = img.w, h = img.h;
+    if (x < 0) x = 0; else if (x > w - 1.001) x = w - 1.001;
+    if (y < 0) y = 0; else if (y > h - 1.001) y = h - 1.001;
+    var xi = x | 0, yi = y | 0, fx = x - xi, fy = y - yi;
+    var i = yi * w + xi, d = img.d;
+    return (d[i] * (1 - fx) + d[i + 1] * fx) * (1 - fy) + (d[i + w] * (1 - fx) + d[i + w + 1] * fx) * fy;
+  }
+
+  // ───────────────────────── 점 고르기 (Shi-Tomasi) ─────────────────────────
+  function pointInPoly(x, y, poly) {
+    var inside = false;
+    for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      var xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
+      if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+
+  function polyBounds(poly, w, h, pad) {
+    var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (var i = 0; i < poly.length; i++) {
+      if (poly[i][0] < x0) x0 = poly[i][0];
+      if (poly[i][0] > x1) x1 = poly[i][0];
+      if (poly[i][1] < y0) y0 = poly[i][1];
+      if (poly[i][1] > y1) y1 = poly[i][1];
+    }
+    return {
+      x0: Math.max(pad, Math.floor(x0)), y0: Math.max(pad, Math.floor(y0)),
+      x1: Math.min(w - 1 - pad, Math.ceil(x1)), y1: Math.min(h - 1 - pad, Math.ceil(y1))
+    };
+  }
+
+  /** poly 안에서 무늬가 뚜렷한 점을 최대 maxN 개. existing 과 minDist 이상 떨어진 것만. */
+  function detectFeatures(img, poly, maxN, minDist, existing) {
+    var w = img.w, h = img.h, d = img.d, R = 3;
+    var b = polyBounds(poly, w, h, R + 2);
+    var bw = b.x1 - b.x0 + 1, bh = b.y1 - b.y0 + 1;
+    if (bw < 3 || bh < 3) return [];
+    var ew = bw + 2 * R, eh = bh + 2 * R; // 창 합을 위해 여유
+    var gxx = new Float32Array(ew * eh), gyy = new Float32Array(ew * eh), gxy = new Float32Array(ew * eh);
+    var x, y, i;
+    for (y = 0; y < eh; y++) {
+      var sy = b.y0 - R + y;
+      for (x = 0; x < ew; x++) {
+        var sx = b.x0 - R + x, p = sy * w + sx;
+        var ix = (d[p + 1] - d[p - 1]) * 0.5, iy = (d[p + w] - d[p - w]) * 0.5;
+        i = y * ew + x;
+        gxx[i] = ix * ix; gyy[i] = iy * iy; gxy[i] = ix * iy;
+      }
+    }
+    // 적분 이미지로 (2R+1)^2 창 합
+    function integral(src) {
+      var W = ew + 1, I = new Float64Array(W * (eh + 1));
+      for (var yy = 0; yy < eh; yy++) {
+        var row = 0;
+        for (var xx = 0; xx < ew; xx++) {
+          row += src[yy * ew + xx];
+          I[(yy + 1) * W + xx + 1] = I[yy * W + xx + 1] + row;
+        }
+      }
+      return I;
+    }
+    var Ixx = integral(gxx), Iyy = integral(gyy), Ixy = integral(gxy), W = ew + 1;
+    function boxSum(I, cx, cy) {
+      var ax = cx - R, ay = cy - R, bx = cx + R + 1, by = cy + R + 1;
+      return I[by * W + bx] - I[ay * W + bx] - I[by * W + ax] + I[ay * W + ax];
+    }
+    var score = new Float32Array(bw * bh), maxS = 0;
+    for (y = 0; y < bh; y++) {
+      for (x = 0; x < bw; x++) {
+        var a = boxSum(Ixx, x + R, y + R), c = boxSum(Iyy, x + R, y + R), bb = boxSum(Ixy, x + R, y + R);
+        var tr = a + c, det = Math.sqrt((a - c) * (a - c) + 4 * bb * bb);
+        var s = 0.5 * (tr - det); // 작은 고유값
+        score[y * bw + x] = s;
+        if (s > maxS) maxS = s;
+      }
+    }
+    if (maxS <= 0) return [];
+    var thr = Math.max(maxS * 0.01, 4);
+    var cand = [];
+    for (y = 1; y < bh - 1; y++) {
+      for (x = 1; x < bw - 1; x++) {
+        i = y * bw + x; var v = score[i];
+        if (v < thr) continue;
+        if (v < score[i - 1] || v < score[i + 1] || v < score[i - bw] || v < score[i + bw] ||
+            v < score[i - bw - 1] || v < score[i - bw + 1] || v < score[i + bw - 1] || v < score[i + bw + 1]) continue;
+        var px = x + b.x0, py = y + b.y0;
+        if (!pointInPoly(px, py, poly)) continue;
+        cand.push([px, py, v]);
+      }
+    }
+    cand.sort(function (p, q) { return q[2] - p[2]; });
+    // 최소 거리 유지 (격자)
+    var cell = Math.max(2, minDist), gw = Math.ceil(w / cell) + 1, gh = Math.ceil(h / cell) + 1;
+    var grid = {};
+    function key(cx, cy) { return cy * gw + cx; }
+    function near(px, py) {
+      var cx = (px / cell) | 0, cy = (py / cell) | 0;
+      for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) {
+        var arr = grid[key(cx + dx, cy + dy)];
+        if (!arr) continue;
+        for (var k = 0; k < arr.length; k++) {
+          var ex = arr[k][0] - px, ey = arr[k][1] - py;
+          if (ex * ex + ey * ey < minDist * minDist) return true;
+        }
+      }
+      return false;
+    }
+    function put(px, py) {
+      var k = key((px / cell) | 0, (py / cell) | 0);
+      (grid[k] || (grid[k] = [])).push([px, py]);
+    }
+    if (existing) for (i = 0; i < existing.length; i++) put(existing[i][0], existing[i][1]);
+    var out = [];
+    for (i = 0; i < cand.length && out.length < maxN; i++) {
+      if (near(cand[i][0], cand[i][1])) continue;
+      put(cand[i][0], cand[i][1]);
+      out.push([cand[i][0], cand[i][1]]);
+    }
+    return out;
+  }
+
+  // ───────────────────────── 피라미드 Lucas-Kanade ─────────────────────────
+  var LK_HALF = 7, LK_N = (2 * LK_HALF + 1) * (2 * LK_HALF + 1);
+  var _T = new Float32Array(LK_N), _Gx = new Float32Array(LK_N), _Gy = new Float32Array(LK_N);
+
+  /** prev 피라미드의 (px,py) 를 cur 피라미드에서 찾기. 반환 [x, y, 잔차] 또는 null */
+  function lkTrack(pyrA, pyrB, px, py, gx, gy) {
+    var L = Math.min(pyrA.length, pyrB.length);
+    var ux = 0, uy = 0; // 최상위 레벨에서의 변위 추정
+    if (gx !== undefined) { var sc0 = 1 / (1 << (L - 1)); ux = (gx - px) * sc0; uy = (gy - py) * sc0; }
+    var resid = 0;
+    for (var lv = L - 1; lv >= 0; lv--) {
+      var A = pyrA[lv], B = pyrB[lv], sc = 1 / (1 << lv);
+      var cx = px * sc, cy = py * sc;
+      if (cx < 1 || cy < 1 || cx > A.w - 2 || cy > A.h - 2) return null;
+      var a = 0, b = 0, c = 0, k = 0, dx, dy;
+      for (dy = -LK_HALF; dy <= LK_HALF; dy++) {
+        for (dx = -LK_HALF; dx <= LK_HALF; dx++) {
+          var sx = cx + dx, sy = cy + dy;
+          var t = sample(A, sx, sy);
+          var ix = (sample(A, sx + 1, sy) - sample(A, sx - 1, sy)) * 0.5;
+          var iy = (sample(A, sx, sy + 1) - sample(A, sx, sy - 1)) * 0.5;
+          _T[k] = t; _Gx[k] = ix; _Gy[k] = iy; k++;
+          a += ix * ix; b += ix * iy; c += iy * iy;
+        }
+      }
+      var det = a * c - b * b;
+      if (det < 1e-3 * LK_N) { if (lv === 0) return null; ux *= 2; uy *= 2; continue; }
+      var inv = 1 / det;
+      for (var it = 0; it < 20; it++) {
+        var e1 = 0, e2 = 0; k = 0; resid = 0;
+        var bx = cx + ux, by = cy + uy;
+        if (bx < -LK_HALF || by < -LK_HALF || bx > B.w + LK_HALF || by > B.h + LK_HALF) return null;
+        for (dy = -LK_HALF; dy <= LK_HALF; dy++) {
+          for (dx = -LK_HALF; dx <= LK_HALF; dx++) {
+            var df = _T[k] - sample(B, bx + dx, by + dy);
+            e1 += df * _Gx[k]; e2 += df * _Gy[k]; resid += df < 0 ? -df : df; k++;
+          }
+        }
+        var sxp = (c * e1 - b * e2) * inv, syp = (a * e2 - b * e1) * inv;
+        ux += sxp; uy += syp;
+        if (sxp * sxp + syp * syp < 0.0009) break;
+      }
+      if (lv > 0) { ux *= 2; uy *= 2; }
+    }
+    var nx = px + ux, ny = py + uy, w0 = pyrB[0].w, h0 = pyrB[0].h;
+    if (nx < 2 || ny < 2 || nx > w0 - 3 || ny > h0 - 3) return null;
+    return [nx, ny, resid / LK_N];
+  }
+
+  // ───────────────────────── 변환 맞추기 ─────────────────────────
+  // 3x3 행렬은 길이 9 배열 (행 우선)
+  function apply(H, x, y) {
+    var z = H[6] * x + H[7] * y + H[8];
+    return [(H[0] * x + H[1] * y + H[2]) / z, (H[3] * x + H[4] * y + H[5]) / z];
+  }
+  function invert(H) {
+    var a = H[0], b = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7], i = H[8];
+    var A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g;
+    var det = a * A + b * B + c * C;
+    if (Math.abs(det) < 1e-12) return null;
+    var s = 1 / det;
+    return [A * s, (c * h - b * i) * s, (b * f - c * e) * s,
+            B * s, (a * i - c * g) * s, (c * d - a * f) * s,
+            C * s, (b * g - a * h) * s, (a * e - b * d) * s];
+  }
+  function identity() { return [1, 0, 0, 0, 1, 0, 0, 0, 1]; }
+
+  function fitTranslation(P, Q, idx) {
+    var sx = 0, sy = 0, n = idx.length;
+    for (var k = 0; k < n; k++) { var i = idx[k]; sx += Q[i][0] - P[i][0]; sy += Q[i][1] - P[i][1]; }
+    return [1, 0, sx / n, 0, 1, sy / n, 0, 0, 1];
+  }
+  function fitSimilarity(P, Q, idx) {
+    var n = idx.length, k, i, mx = 0, my = 0, nx = 0, ny = 0;
+    for (k = 0; k < n; k++) { i = idx[k]; mx += P[i][0]; my += P[i][1]; nx += Q[i][0]; ny += Q[i][1]; }
+    mx /= n; my /= n; nx /= n; ny /= n;
+    var sa = 0, sb = 0, sp = 0;
+    for (k = 0; k < n; k++) {
+      i = idx[k];
+      var px = P[i][0] - mx, py = P[i][1] - my, qx = Q[i][0] - nx, qy = Q[i][1] - ny;
+      sa += px * qx + py * qy; sb += px * qy - py * qx; sp += px * px + py * py;
+    }
+    if (sp < 1e-9) return null;
+    var a = sa / sp, b = sb / sp;
+    return [a, -b, nx - a * mx + b * my, b, a, ny - b * mx - a * my, 0, 0, 1];
+  }
+  function solve(A, b, n) { // 가우스 소거 (부분 피벗)
+    for (var c = 0; c < n; c++) {
+      var p = c, r;
+      for (r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
+      if (Math.abs(A[p][c]) < 1e-12) return null;
+      var t = A[c]; A[c] = A[p]; A[p] = t; var tb = b[c]; b[c] = b[p]; b[p] = tb;
+      for (r = c + 1; r < n; r++) {
+        var f = A[r][c] / A[c][c];
+        if (!f) continue;
+        for (var k = c; k < n; k++) A[r][k] -= f * A[c][k];
+        b[r] -= f * b[c];
+      }
+    }
+    var x = new Array(n);
+    for (var i = n - 1; i >= 0; i--) {
+      var s = b[i];
+      for (var j = i + 1; j < n; j++) s -= A[i][j] * x[j];
+      x[i] = s / A[i][i];
+    }
+    return x;
+  }
+  function normPts(P, idx) {
+    var n = idx.length, mx = 0, my = 0, k, d = 0;
+    for (k = 0; k < n; k++) { mx += P[idx[k]][0]; my += P[idx[k]][1]; }
+    mx /= n; my /= n;
+    for (k = 0; k < n; k++) { var x = P[idx[k]][0] - mx, y = P[idx[k]][1] - my; d += Math.sqrt(x * x + y * y); }
+    d /= n; var s = d > 1e-9 ? Math.SQRT2 / d : 1;
+    return { s: s, mx: mx, my: my };
+  }
+  function mul(A, B) {
+    var o = new Array(9);
+    for (var r = 0; r < 3; r++) for (var c = 0; c < 3; c++)
+      o[r * 3 + c] = A[r * 3] * B[c] + A[r * 3 + 1] * B[3 + c] + A[r * 3 + 2] * B[6 + c];
+    return o;
+  }
+  function fitHomography(P, Q, idx) {
+    var n = idx.length;
+    if (n < 4) return null;
+    var np = normPts(P, idx), nq = normPts(Q, idx);
+    var AtA = [], Atb = [], r, c;
+    for (r = 0; r < 8; r++) { AtA.push([0, 0, 0, 0, 0, 0, 0, 0]); Atb.push(0); }
+    for (var k = 0; k < n; k++) {
+      var i = idx[k];
+      var x = (P[i][0] - np.mx) * np.s, y = (P[i][1] - np.my) * np.s;
+      var u = (Q[i][0] - nq.mx) * nq.s, v = (Q[i][1] - nq.my) * nq.s;
+      var r1 = [x, y, 1, 0, 0, 0, -u * x, -u * y], r2 = [0, 0, 0, x, y, 1, -v * x, -v * y];
+      for (r = 0; r < 8; r++) {
+        for (c = 0; c < 8; c++) AtA[r][c] += r1[r] * r1[c] + r2[r] * r2[c];
+        Atb[r] += r1[r] * u + r2[r] * v;
+      }
+    }
+    var hh = solve(AtA, Atb, 8);
+    if (!hh) return null;
+    var Hn = [hh[0], hh[1], hh[2], hh[3], hh[4], hh[5], hh[6], hh[7], 1];
+    var Tp = [np.s, 0, -np.s * np.mx, 0, np.s, -np.s * np.my, 0, 0, 1];
+    var Tqi = [1 / nq.s, 0, nq.mx, 0, 1 / nq.s, nq.my, 0, 0, 1];
+    var H = mul(Tqi, mul(Hn, Tp));
+    if (Math.abs(H[8]) < 1e-12) return null;
+    for (r = 0; r < 9; r++) H[r] /= H[8];
+    return H;
+  }
+
+  var MODELS = {
+    translation: { min: 1, fit: fitTranslation },
+    similarity: { min: 2, fit: fitSimilarity },
+    homography: { min: 4, fit: fitHomography }
+  };
+
+  // 고정 시드 난수 (같은 입력 → 같은 결과)
+  function rng(seed) {
+    var s = seed >>> 0 || 1;
+    return function () { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
+  }
+
+  /** RANSAC 으로 P→Q 변환. 반환 { H, inliers:[index], err } 또는 null */
+  function robustFit(P, Q, modelName, thr, seed) {
+    var m = MODELS[modelName], n = P.length;
+    if (n < m.min) return null;
+    var all = []; for (var i = 0; i < n; i++) all.push(i);
+    var thr2 = thr * thr, best = null, bestCount = -1, rand = rng(seed || 12345);
+    var iters = m.min === 1 ? Math.min(n, 60) : (m.min === 2 ? 150 : 300);
+    function count(H) {
+      var inl = [];
+      for (var k = 0; k < n; k++) {
+        var q = apply(H, P[k][0], P[k][1]);
+        var dx = q[0] - Q[k][0], dy = q[1] - Q[k][1];
+        if (dx * dx + dy * dy <= thr2) inl.push(k);
+      }
+      return inl;
+    }
+    for (var it = 0; it < iters; it++) {
+      var pick = [];
+      if (m.min === 1) pick = [it % n];
+      else {
+        var guard = 0;
+        while (pick.length < m.min && guard++ < 50) {
+          var r = (rand() * n) | 0;
+          if (pick.indexOf(r) < 0) pick.push(r);
+        }
+        if (pick.length < m.min) continue;
+      }
+      var H = m.fit(P, Q, pick);
+      if (!H) continue;
+      var inl = count(H);
+      if (inl.length > bestCount) { bestCount = inl.length; best = inl; if (bestCount === n) break; }
+    }
+    if (!best || best.length < m.min) return null;
+    // 인라이어로 다시 맞추기 (2번)
+    var Hf = null;
+    for (var pass = 0; pass < 2; pass++) {
+      var Ht = m.fit(P, Q, best);
+      if (!Ht) break;
+      Hf = Ht;
+      var again = count(Ht);
+      if (again.length < m.min) break;
+      best = again;
+    }
+    if (!Hf) return null;
+    var err = 0;
+    for (var k2 = 0; k2 < best.length; k2++) {
+      var q2 = apply(Hf, P[best[k2]][0], P[best[k2]][1]);
+      err += Math.sqrt(Math.pow(q2[0] - Q[best[k2]][0], 2) + Math.pow(q2[1] - Q[best[k2]][1], 2));
+    }
+    return { H: Hf, inliers: best, err: err / best.length };
+  }
+
+  // ───────────────────────── 추적기 ─────────────────────────
+  /**
+   * opts: { model: 'translation'|'similarity'|'homography', maxPoints, levels }
+   * poly: 기준 프레임에서의 영역 꼭짓점 [[x,y],...] (분석 이미지 좌표)
+   */
+  function Tracker(refGray, poly, opts) {
+    opts = opts || {};
+    this.model = opts.model || 'similarity';
+    this.maxPoints = opts.maxPoints || 140;
+    this.levels = opts.levels || 4;
+    this.poly = poly.map(function (p) { return [p[0], p[1]]; });
+    var b = polyBounds(poly, refGray.w, refGray.h, 0);
+    var size = Math.sqrt(Math.max(1, (b.x1 - b.x0) * (b.y1 - b.y0)));
+    this.minDist = Math.max(3, Math.min(12, size / 14));
+    this.thr = Math.max(1.5, Math.min(4, size / 60));
+    this.pyr = buildPyramid(refGray, this.levels);
+    this.H = identity();
+    this.ref = detectFeatures(refGray, this.poly, this.maxPoints, this.minDist, null);
+    this.cur = this.ref.map(function (p) { return [p[0], p[1]]; });
+    this.initial = this.ref.length;
+    this.frame = 0;
+    this.lost = false;
+  }
+
+  Tracker.prototype.minNeeded = function () { return this.model === 'homography' ? 8 : (this.model === 'similarity' ? 4 : 2); };
+
+  /** 다음 프레임. 반환 { ok, H, conf, points, center, scale, rotation, corners } */
+  Tracker.prototype.step = function (gray) {
+    this.frame++;
+    var pyr = buildPyramid(gray, this.levels);
+    var need = this.minNeeded();
+    if (this.lost || this.cur.length < need) { this.lost = true; this.pyr = pyr; return this.result(false, 0); }
+    var P = [], Q = [], i;
+    for (i = 0; i < this.cur.length; i++) {
+      var c = this.cur[i];
+      var f = lkTrack(this.pyr, pyr, c[0], c[1]);
+      if (!f || f[2] > 28) continue;
+      var bk = lkTrack(pyr, this.pyr, f[0], f[1], c[0], c[1]);
+      if (!bk) continue;
+      var ex = bk[0] - c[0], ey = bk[1] - c[1];
+      if (ex * ex + ey * ey > 1.0) continue; // 앞뒤 검증
+      P.push(this.ref[i]); Q.push([f[0], f[1]]);
+    }
+    var tracked = P.length;
+    var fit = tracked >= need ? robustFit(P, Q, this.model, this.thr, 1000 + this.frame) : null;
+    if (!fit || fit.inliers.length < need) {
+      this.lost = true; this.pyr = pyr;
+      return this.result(false, 0);
+    }
+    var nref = [], ncur = [];
+    for (i = 0; i < fit.inliers.length; i++) { nref.push(P[fit.inliers[i]]); ncur.push(Q[fit.inliers[i]]); }
+    this.H = fit.H; this.ref = nref; this.cur = ncur; this.pyr = pyr;
+
+    // 점이 줄었으면 지금 영역에서 새로 보충
+    if (this.cur.length < this.maxPoints * 0.6) {
+      var Hi = invert(this.H);
+      if (Hi) {
+        var H = this.H;
+        var polyNow = this.poly.map(function (p) { return apply(H, p[0], p[1]); });
+        var add = detectFeatures(gray, polyNow, this.maxPoints - this.cur.length, this.minDist, this.cur);
+        for (i = 0; i < add.length; i++) {
+          var rp = apply(Hi, add[i][0], add[i][1]);
+          if (isFinite(rp[0]) && isFinite(rp[1])) { this.ref.push(rp); this.cur.push(add[i]); }
+        }
+      }
+    }
+    var conf = Math.min(1, fit.inliers.length / Math.max(need * 3, Math.min(this.initial, 30))) *
+               Math.min(1, fit.inliers.length / Math.max(1, tracked) + 0.2);
+    return this.result(true, conf);
+  };
+
+  Tracker.prototype.result = function (ok, conf) {
+    var H = this.H, poly = this.poly, cx = 0, cy = 0, i;
+    for (i = 0; i < poly.length; i++) { cx += poly[i][0]; cy += poly[i][1]; }
+    cx /= poly.length; cy /= poly.length;
+    var dec = decompose(H, cx, cy);
+    return {
+      ok: ok, conf: conf, H: H.slice(), points: this.cur.length,
+      center: dec.center, scale: dec.scale, rotation: dec.rotation,
+      corners: poly.map(function (p) { return apply(H, p[0], p[1]); })
+    };
+  };
+
+  /** (cx,cy) 근처에서 H 의 이동·비율·회전(도) */
+  function decompose(H, cx, cy) {
+    var c = apply(H, cx, cy), e = 1;
+    var px = apply(H, cx + e, cy), mx = apply(H, cx - e, cy), py = apply(H, cx, cy + e), my = apply(H, cx, cy - e);
+    var a = (px[0] - mx[0]) / 2, b = (py[0] - my[0]) / 2, d = (px[1] - mx[1]) / 2, f = (py[1] - my[1]) / 2;
+    var det = a * f - b * d;
+    return {
+      center: c,
+      scale: Math.sqrt(Math.abs(det)),
+      rotation: Math.atan2(d - b, a + f) * 180 / Math.PI
+    };
+  }
+
+  // ───────────────────────── 후처리 ─────────────────────────
+  /** 가우시안으로 부드럽게 (앞뒤 대칭이라 밀림 없음). sigma = 프레임 수 */
+  function smooth(arr, sigma) {
+    var n = arr.length;
+    if (!(sigma > 0.05) || n < 3) return arr.slice();
+    var r = Math.max(1, Math.ceil(sigma * 3)), k = [], i, j, s = 0;
+    for (i = -r; i <= r; i++) { var v = Math.exp(-i * i / (2 * sigma * sigma)); k.push(v); s += v; }
+    var out = new Array(n);
+    for (i = 0; i < n; i++) {
+      var acc = 0;
+      for (j = -r; j <= r; j++) {
+        var t = i + j;
+        // 끝에서는 기울기를 유지하도록 점대칭 반사
+        var val;
+        if (t < 0) val = 2 * arr[0] - arr[Math.min(n - 1, -t)];
+        else if (t > n - 1) val = 2 * arr[n - 1] - arr[Math.max(0, 2 * (n - 1) - t)];
+        else val = arr[t];
+        acc += val * k[j + r];
+      }
+      out[i] = acc / s;
+    }
+    return out;
+  }
+  function unwrapDeg(arr) {
+    var out = arr.slice();
+    for (var i = 1; i < out.length; i++) {
+      var d = out[i] - out[i - 1];
+      while (d > 180) { out[i] -= 360; d -= 360; }
+      while (d < -180) { out[i] += 360; d += 360; }
+    }
+    return out;
+  }
+  /** 부드럽게 강도 0~100 → 프레임 단위 sigma */
+  function sigmaFromStrength(strength) { return Math.max(0, strength) / 100 * 5; }
+
+  /** 추적 결과 배열(프레임 순서) → 부드럽게 한 트랙. 못 찾은 프레임은 앞뒤 값으로 메움 */
+  function buildTracks(results, strength) {
+    var n = results.length, i, k;
+    var okIdx = [];
+    for (i = 0; i < n; i++) if (results[i] && results[i].ok) okIdx.push(i);
+    if (!okIdx.length) return null;
+    function series(get) {
+      var a = new Array(n);
+      for (var q = 0; q < okIdx.length; q++) a[okIdx[q]] = get(results[okIdx[q]]);
+      // 빈 곳 선형 보간 / 양끝은 유지
+      var prev = -1;
+      for (var t = 0; t < n; t++) {
+        if (a[t] !== undefined) {
+          if (prev < 0) for (var u = 0; u < t; u++) a[u] = a[t];
+          else for (var u2 = prev + 1; u2 < t; u2++) a[u2] = a[prev] + (a[t] - a[prev]) * (u2 - prev) / (t - prev);
+          prev = t;
+        }
+      }
+      for (var u3 = prev + 1; u3 < n; u3++) a[u3] = a[prev];
+      return a;
+    }
+    var sg = sigmaFromStrength(strength || 0);
+    var x = smooth(series(function (r) { return r.center[0]; }), sg);
+    var y = smooth(series(function (r) { return r.center[1]; }), sg);
+    var ls = smooth(series(function (r) { return Math.log(r.scale); }), sg);
+    var rot = smooth(unwrapDeg(series(function (r) { return r.rotation; })), sg);
+    var nc = results[okIdx[0]].corners.length, corners = [];
+    for (k = 0; k < nc; k++) {
+      (function (kk) {
+        corners.push({
+          x: smooth(series(function (r) { return r.corners[kk][0]; }), sg),
+          y: smooth(series(function (r) { return r.corners[kk][1]; }), sg)
+        });
+      })(k);
+    }
+    var scale = ls.map(function (v) { return Math.exp(v); });
+    var okFlags = results.map(function (r) { return !!(r && r.ok); });
+    return { n: n, x: x, y: y, scale: scale, rotation: rot, corners: corners, ok: okFlags };
+  }
+
+  /**
+   * 따라가기: 기준 프레임에서 (p0x,p0y)·scale0·rot0 에 있던 대상이 추적 대상을 따라가도록.
+   * tracks 좌표계와 p0 좌표계는 같아야 함(예: 시퀀스 픽셀). use = { pos, scale, rot }
+   */
+  function followKeys(tracks, refIndex, p0, use) {
+    var cx0 = tracks.x[refIndex], cy0 = tracks.y[refIndex];
+    var s0 = tracks.scale[refIndex], r0 = tracks.rotation[refIndex];
+    var out = [];
+    for (var i = 0; i < tracks.n; i++) {
+      var s = use.scale ? tracks.scale[i] / s0 : 1;
+      var th = use.rot ? (tracks.rotation[i] - r0) : 0;
+      var c = Math.cos(th * Math.PI / 180), sn = Math.sin(th * Math.PI / 180);
+      var ox = p0.x - cx0, oy = p0.y - cy0;
+      var x = p0.x, y = p0.y;
+      if (use.pos) {
+        x = tracks.x[i] + s * (c * ox - sn * oy);
+        y = tracks.y[i] + s * (sn * ox + c * oy);
+      }
+      out.push({ x: x, y: y, scale: s, rotation: th });
+    }
+    return out;
+  }
+
+  /**
+   * 역추적 안정화: 변형(Transform) 효과에 넣을 값.
+   * 기준점(anchor) = 그 프레임의 추적 위치, 위치 = 기준 프레임의 추적 위치(고정),
+   * 비율 = 1/s, 회전 = -θ  →  대상이 화면에 고정됨.
+   */
+  function stabilizeKeys(tracks, refIndex, use) {
+    var s0 = tracks.scale[refIndex], r0 = tracks.rotation[refIndex];
+    var out = [];
+    for (var i = 0; i < tracks.n; i++) {
+      out.push({
+        anchorX: tracks.x[i], anchorY: tracks.y[i],
+        x: tracks.x[refIndex], y: tracks.y[refIndex],
+        scale: use.scale ? s0 / tracks.scale[i] : 1,
+        rotation: use.rot ? -(tracks.rotation[i] - r0) : 0
+      });
+    }
+    return out;
+  }
+
+  return {
+    grayFromRGBA: grayFromRGBA, buildPyramid: buildPyramid, detectFeatures: detectFeatures,
+    lkTrack: lkTrack, robustFit: robustFit, apply: apply, invert: invert, decompose: decompose,
+    Tracker: Tracker, smooth: smooth, buildTracks: buildTracks,
+    followKeys: followKeys, stabilizeKeys: stabilizeKeys, sigmaFromStrength: sigmaFromStrength
   };
 });

@@ -4,6 +4,7 @@
     <button class="tab on" data-tab="motion">모션</button>
     <button class="tab" data-tab="curve">커브</button>
     <button class="tab" data-tab="fx">효과</button>
+    <button class="tab" data-tab="track">트래킹</button>
   </nav>
   <button class="icon langBtn noTr" id="btnLang" title="View in English">EN</button>
   <button class="icon" id="btnReload" title="패널 새로고침 (engine.js 등을 고친 뒤)">↻</button>
@@ -112,60 +113,58 @@
   <!-- 커브 탭 -->
   <section id="tab-curve" class="pane split">
     <div class="sTop">
-    <div class="card cvCard">
-      <canvas id="cv" width="600" height="420"></canvas>
-      <div class="readout" id="readout"></div>
-      <div class="track"><span id="ball"></span></div>
-    </div>
-
+      <div class="card cvCard">
+        <canvas id="cv" width="600" height="420"></canvas>
+        <div class="cvBar"><span class="readout" id="readout"></span><button class="chipA" id="btnRev" title="곡선의 앞뒤를 뒤집어요 (멈추는 곡선 ↔ 출발하는 곡선)">⇄ 뒤집기</button></div>
+        <div class="track"><span id="ball"></span></div>
+      </div>
+      <div class="curveRow">
+        <div class="seg" id="optCurveAll"><button data-v="1" title="선택한 클립의 키프레임 있는 속성 전체에">All 전체</button><button data-v="0" title="속성과 키프레임 구간을 골라서">골라서</button></div>
+        <button class="ghost blurBtn" id="btnBlur" title="모션(Motion)으로 움직인 클립을 변형(Transform) 효과로 옮기고 모션블러(셔터 180°)를 켜요">모션블러</button>
+      </div>
       <div class="btnPair">
-        <button class="primary wide" id="btnCurve">선택 클립 키프레임에 커브 적용</button>
-        <button class="ghost wide" id="btnRestore">원래 키프레임으로 복원</button>
+        <button class="ghost wide" id="btnRestore" title="곡선을 빼고 원래 키프레임(일정한 속도)으로 되돌려요">Linear (원래대로)</button>
+        <button class="primary wide" id="btnCurve">곡선 적용</button>
       </div>
     </div>
     <div class="sScroll">
-    <div class="card">
-      <div class="head"><span>커브</span><small>우클릭: 내 커브 삭제</small></div>
-      <div class="chips" id="curveList"></div>
-      <div class="saveRow">
-        <input id="saveName" maxlength="12" placeholder="지금 커브를 이름 붙여 저장">
-        <button id="btnSave">저장</button>
-      </div>
-    </div>
-
-    <div class="opts">
-      <div class="row wrap">
-        <label>대상</label>
-        <div class="chips multi" id="kinds">
-          <button data-v="pos">위치</button>
-          <button data-v="scale">비율</button>
-          <button data-v="rot">회전</button>
-          <button data-v="op">불투명도</button>
-          <button data-v="other">기타 효과</button>
+      <div class="card">
+        <div class="head"><span>곡선</span><small>마우스를 올리면 미리보기 · 우클릭: 내 곡선 삭제</small></div>
+        <div class="curveGrid" id="curveList"></div>
+        <div class="saveRow">
+          <input id="saveName" maxlength="12" placeholder="지금 곡선을 이름 붙여 저장">
+          <button id="btnSave">저장</button>
         </div>
       </div>
-      <div class="row">
-        <label>범위</label>
-        <div class="seg" id="optScope">
-          <button data-v="all">모든 구간</button>
-          <button data-v="playhead">재생헤드 구간</button>
+      <div class="opts">
+        <div class="row wrap" id="kindsRow">
+          <label>대상</label>
+          <div class="chips multi" id="kinds">
+            <button data-v="pos">위치</button>
+            <button data-v="scale">비율</button>
+            <button data-v="rot">회전</button>
+            <button data-v="op">불투명도</button>
+            <button data-v="other">기타 효과</button>
+          </div>
+        </div>
+        <div class="row">
+          <label>키 간격</label>
+          <div class="seg" id="optStep">
+            <button data-v="1">1프레임</button>
+            <button data-v="2">2프레임</button>
+          </div>
         </div>
       </div>
-      <div class="row">
-        <label>키 간격</label>
-        <div class="seg" id="optStep">
-          <button data-v="1">1프레임</button>
-          <button data-v="2">2프레임</button>
-        </div>
-      </div>
-    </div>
-
-    <p class="note">클립에 이미 있는 키프레임 사이를 이 커브 모양으로 채워요. 직접 찍은 키프레임에도 돼요. 커브를 바꿔서 다시 누르면 교체돼요.</p>
+      <p class="note">클립에 이미 있는 키프레임 사이를 이 곡선 모양으로 채워요. 직접 찍은 키프레임에도 돼요. 곡선을 바꿔서 다시 누르면 교체되고, <b>Linear</b> 로 원래대로 돌아가요. <b>골라서</b>를 고르면 원하는 속성·구간만 바꿀 수 있어요.</p>
     </div>
   </section>
   <!-- 효과 탭 -->
   <section id="tab-fx" class="pane split">
     <div class="sTop">
+      <div class="card quickCard">
+        <div class="head" title="선택한 클립 길이에 맞춰, 다른 클립과 겹치지 않게 위쪽 빈 트랙에 넣어요 (빈 트랙이 없으면 트랙을 추가) · 선택이 없으면 재생헤드부터 5초"><span>빠르게 넣기</span><small>선택 클립 길이에 맞춰 · 없으면 재생헤드부터 5초</small></div>
+        <div class="quickRow"><button class="ghost" id="btnAdj">＋ 조정 레이어</button><button class="ghost" id="btnBlack">＋ 검은 화면</button></div>
+      </div>
       <div class="card">
         <div class="head"><span>즐겨찾는 효과</span><small>클릭: 선택 클립에 추가 · 우클릭: 빼기</small></div>
         <div class="fxFavs" id="fxFavs"></div>
@@ -184,13 +183,60 @@
       <p class="note">이름을 누르면 선택한 클립에 바로 들어가요. ☆ 로 즐겨찾기하면 위와 미니 창에 나와요.<br>오디오 효과(리버브 등)는 타임라인에서 <b>오디오 클립</b>을 선택하고 누르세요.</p>
     </div>
   </section>
+  <!-- 트래킹 탭: 화면의 대상을 직접 따라가서 키프레임으로 -->
+  <section id="tab-track" class="pane">
+    <div class="opts">
+      <div class="row"><label>방식</label>
+        <div class="seg" id="trkMode"><button data-v="follow">따라가기</button><button data-v="stab" title="흔들리는 대상을 화면에 고정 (안정화)">고정</button><button data-v="pin">화면 합성</button></div></div>
+      <p class="note trkHelp" id="trkHelp"></p>
+      <div class="row"><label>범위</label>
+        <div class="seg" id="trkRange"><button data-v="clip">클립 전체</button><button data-v="inout" title="시퀀스에 인·아웃을 찍어 둔 구간만 추적">인·아웃 구간</button></div></div>
+      <div class="row"><label>간격</label>
+        <div class="seg" id="trkStep"><button data-v="1">매 프레임</button><button data-v="2" title="2프레임마다 추적 (더 빠름)">2프레임</button><button data-v="3" title="3프레임마다 추적 (가장 빠름)">3프레임</button></div></div>
+    </div>
+    <button class="primary wide" id="btnTrkGrab">① 화면 가져와서 추적하기</button>
+    <div class="card trkCard">
+      <div class="head"><span>추적 결과</span><small id="trkInfo">아직 없음</small></div>
+      <div class="row wrap" id="trkUseRow"><label>속성</label>
+        <div class="chips multi" id="trkUse"><button data-v="pos">위치</button><button data-v="scale">비율</button><button data-v="rot">회전</button></div></div>
+      <div class="row"><label>부드럽게</label>
+        <div class="slide"><input type="range" id="trkSmooth" min="0" max="100" step="5"></div><span class="val trkVal" id="trkSmoothVal"></span></div>
+      <div class="row" id="trkBlurRow"><label>모션블러</label><button class="toggle" id="trkBlur" aria-label="추적 모션블러"><i></i></button><span class="hint" id="trkBlurHint"></span></div>
+      <div class="row" id="trkZoomRow"><label>확대</label>
+        <div class="seg" id="trkZoom"><button data-v="100">100%</button><button data-v="105">105%</button><button data-v="110">110%</button><button data-v="120">120%</button></div></div>
+      <div class="btnPair">
+        <button class="primary wide" id="btnTrkApply">② 선택 클립에 다시 적용</button>
+        <button class="ghost wide" id="btnTrkClear" title="선택 클립의 추적 키프레임(모션 위치·비율·회전, 모퉁이 고정)을 지워요">추적 키프레임 지우기</button>
+      </div>
+    </div>
+    <p class="note">추적이 끝나면 선택했던 클립에 바로 들어가요. 속성·부드럽게를 바꾼 뒤 "다시 적용"을 누르면 다시 추적하지 않고 값만 바뀌어요. 같은 추적을 다른 클립에 넣을 때도 그 클립을 선택하고 "다시 적용".</p>
+    <p class="note">무늬가 뚜렷한 곳(얼굴, 로고, 글자, 모서리)을 지정할수록 잘 따라가요. 추적하는 동안 재생헤드가 움직이고 위쪽 트랙이 잠깐 꺼졌다가 끝나면 원래대로 돌아와요.</p>
+  </section>
 </main>
+<!-- 커브: 속성과 구간 고르기 -->
+<div class="pickBox segBox" id="segBox">
+  <div class="pickPanel">
+    <div class="pickHead"><b>속성과 구간 고르기</b><small>곡선을 넣을 키프레임 사이를 눌러서 고르세요</small></div>
+    <div class="segList" id="segList"></div>
+    <div class="pickBtns"><button class="ghost" id="segAll">모두</button><button class="ghost" id="segPh">재생헤드 구간</button><button class="ghost" id="segNone">없음</button><span class="pickRead"></span><button class="ghost" id="segCancel">취소</button><button class="primary" id="segApply">적용</button></div>
+  </div>
+</div>
 <!-- 기준점 지정 화면 (화면 캡처) -->
 <div class="pickBox" id="pickBox">
   <div class="pickPanel">
     <div class="pickHead"><b>기준점 바꾸기</b><small>점을 드래그하거나 클릭하세요 · 놓으면 그 점을 중심으로 줌되는 모습을 미리 보여줘요 · 선택한 클립에 이미 넣은 모션도 바로 바뀌어요</small></div>
     <div class="pickWrap"><div class="pickImg" id="pickImg"><div class="pickView"><img id="pickPic" alt="" draggable="false"></div><i class="pickGuide v" id="pickGv"></i><i class="pickGuide h" id="pickGh"></i><span class="pickDot" id="pickDot"></span></div></div>
     <div class="pickBtns"><span class="pickRead" id="pickRead"></span><button class="ghost" id="pickPlay" title="이 점을 중심으로 줌되는 모습 다시 보기">▶ 미리보기</button><button class="ghost" id="pickCenter">가운데로</button><button class="primary" id="pickDone">완료</button></div>
+  </div>
+</div>
+
+<!-- 트래킹: 영역 지정 + 추적 진행 화면 -->
+<div class="trkBox" id="trkBox">
+  <div class="trkPanel">
+    <div class="pickHead"><b id="trkTitle">따라갈 대상 지정</b><small id="trkSub"></small></div>
+    <div class="trkWrap"><canvas id="trkCv" width="16" height="9"></canvas></div>
+    <div class="trkBar"><i id="trkProg"></i></div>
+    <div class="pickBtns"><span class="pickRead" id="trkRead"></span><button class="ghost" id="trkCancel">닫기</button><button class="primary" id="trkGo">추적 시작</button></div>
   </div>
 </div>
 

@@ -5,7 +5,7 @@
   var cep = window.__adobe_cep__;
   var FORCE_MINI = !!window.MK_FORCE_MINI;          // mini.html (별도 미니 패널)
   var MAIN_ID = 'com.moment.motionkit.main';
-  var RUN = window.MK_RUNNING || { v: '1.6.4', src: 'bundled' };
+  var RUN = window.MK_RUNNING || { v: '1.7.0', src: 'bundled' };
   var VERSION = 'v' + RUN.v;
   var SRCNAME = { online: '방금 자동 업데이트됨', cache: '저장된 업데이트', bundled: '설치본' };
 
@@ -43,7 +43,7 @@
     '진단 정보 복사 (잘 안 될 때)': 'Copy diagnostics (if something fails)', '닫기': 'Close',
     '우클릭: 내 커브 삭제': 'Right-click: delete my curve', '지금 커브를 이름 붙여 저장': 'Name and save the current curve', '저장': 'Save',
     '대상': 'Target', '위치': 'Position', '비율': 'Scale', '회전': 'Rotation', '불투명도': 'Opacity', '기타 효과': 'Other effects', '범위': 'Range',
-    '모든 구간': 'All segments', '재생헤드 구간': 'Segment at playhead', '키 간격': 'Key step', '1프레임': '1 frame', '2프레임': '2 frames',
+    '모든 구간': 'All segments', '재생헤드 구간': 'Segment at playhead', '키 간격': 'Key step', '1프레임': '1 frame', '2f 빠름': '2f fast', '4f 보통': '4f normal', '6f 천천히': '6f slow', '2프레임': '2 frames',
     '선택 클립 키프레임에 커브 적용': 'Apply curve to selected clip keyframes', '원래 키프레임으로 복원': 'Restore original keyframes',
     '클립에 이미 있는 키프레임 사이를 이 커브 모양으로 채워요. 직접 찍은 키프레임에도 돼요. 커브를 바꿔서 다시 누르면 교체돼요.':
       'Fills the space between existing keyframes with this curve. Works on hand-made keyframes too. Change the curve and press again to replace it.',
@@ -93,7 +93,125 @@
     '재생헤드가 키프레임 두 개 사이에 있어야 해요': 'The playhead must be between two keyframes', '선택한 대상에 키프레임이 2개 이상인 속성이 없어요': 'No selected property has 2 or more keyframes',
     '커브 적용 중…': 'Applying curve…', '복원할 기록이 없어요 (패널을 다시 열면 기록이 사라져요)': 'Nothing to restore (history is cleared when the panel reopens)',
     '미리보기 모드 — 프리미어 안에서 열면 적용돼요': 'Preview mode — open inside Premiere to apply',
-    '지우기': 'Clear', '검색': 'Search', '찾는 모션이 없어요': 'No matching motions', '모션 검색': 'Search', '모션 이름 검색 (한글/영문)': 'Search motions (Korean/English)'
+    '지우기': 'Clear', '검색': 'Search', '찾는 모션이 없어요': 'No matching motions', '모션 검색': 'Search', '모션 이름 검색 (한글/영문)': 'Search motions (Korean/English)',
+    /* 트래킹 탭 */
+    '트래킹': 'Tracking',
+    '방식': 'Mode',
+    '따라가기': 'Follow',
+    '고정': 'Stabilize', '흔들리는 대상을 화면에 고정 (안정화)': 'Lock a moving subject in place (stabilize)', '추적하는 중… 끝나면 선택한 클립에 바로 들어가요': 'Tracking… it is applied to the selected clip when done',
+    '화면 합성': 'Screen insert',
+    '클립 전체': 'Whole clip',
+    '인·아웃 구간': 'In–Out range',
+    '시퀀스에 인·아웃을 찍어 둔 구간만 추적': 'Track only between the sequence In and Out points',
+    '간격': 'Every',
+    '매 프레임': '1 frame',
+    '3프레임': '3 frames',
+    '2프레임마다 추적 (더 빠름)': 'Track every 2nd frame (faster)',
+    '3프레임마다 추적 (가장 빠름)': 'Track every 3rd frame (fastest)',
+    '① 화면 가져와서 추적하기': '① Grab frame & track',
+    '추적 결과': 'Track result',
+    '아직 없음': 'None yet',
+    '속성': 'Properties',
+    '추적 모션블러': 'Tracking motion blur',
+    '확대': 'Zoom',
+    '② 선택 클립에 다시 적용': '② Re-apply to selected clips',
+    '추적 키프레임 지우기': 'Clear tracking keyframes',
+    '선택 클립의 추적 키프레임(모션 위치·비율·회전, 모퉁이 고정)을 지워요': 'Removes tracking keyframes (Motion position/scale/rotation, Corner Pin) from the selected clips',
+    '추적이 끝나면 선택했던 클립에 바로 들어가요. 속성·부드럽게를 바꾼 뒤 \"다시 적용\"을 누르면 다시 추적하지 않고 값만 바뀌어요. 같은 추적을 다른 클립에 넣을 때도 그 클립을 선택하고 \"다시 적용\".': 'When tracking finishes it is applied to the clip you selected. Change Properties/Smooth and press "Re-apply" to update without tracking again. To put the same track on another clip, select it and press "Re-apply".',
+    '무늬가 뚜렷한 곳(얼굴, 로고, 글자, 모서리)을 지정할수록 잘 따라가요. 추적하는 동안 재생헤드가 움직이고 위쪽 트랙이 잠깐 꺼졌다가 끝나면 원래대로 돌아와요.': 'Areas with clear detail (faces, logos, text, corners) track best. While tracking, the playhead moves and upper tracks are hidden briefly, then everything is restored.',
+    '붙일 클립(자막·이미지·영상)을 선택 → 화면에서 따라갈 대상을 네모로 지정하면, 선택한 클립이 그 대상을 따라 움직여요.': 'Select the clip to attach (title, image, video) → box the subject on screen, and the selected clip follows it.',
+    '흔들리는 영상 클립을 선택 → 멈춰 보이게 할 대상을 네모로 지정하면, 그 대상이 제자리에 있도록 영상을 반대로 움직여요.': 'Select the shaky video clip → box the subject to lock, and the clip is moved the opposite way so the subject stays put.',
+    '끼워 넣을 클립(위 트랙의 영상·이미지)을 선택 → 아래 화면의 모니터·휴대폰 네 모서리를 지정하면, 선택한 클립이 그 화면에 붙어요.': 'Select the clip to insert (video/image on an upper track) → mark the four corners of the monitor or phone below, and the clip is pinned to that screen.',
+    '따라갈 대상 지정': 'Pick the subject to follow',
+    '고정할 대상 지정': 'Pick the subject to lock',
+    '화면의 네 모서리 지정': 'Mark the four screen corners',
+    '점 1~4 를 끌어서 화면의 왼쪽 위 → 오른쪽 위 → 오른쪽 아래 → 왼쪽 아래 모서리에 맞추세요': 'Drag points 1–4 to the top-left → top-right → bottom-right → bottom-left corners of the screen',
+    '따라갈 대상 위에서 끌어서 네모를 그리세요 · 무늬가 뚜렷한 곳일수록 잘 따라가요': 'Drag a box over the subject · clear detail tracks best',
+    '추적 시작': 'Start tracking',
+    '중지': 'Stop',
+    '셔터 180°': 'Shutter 180°',
+    '변형 효과에 기록 (셔터 180°)': 'Written to a Transform effect (shutter 180°)',
+    '끔 · 클립의 모션 속성에 기록': 'Off · written to the clip Motion',
+    '영역을 다시 끌면 새로 지정돼요': 'Drag again to redraw the box',
+    '대상 위에서 끌어서 네모를 그리세요': 'Drag a box over the subject',
+    '추적 엔진을 불러오지 못했어요 — 패널을 새로고침(↻)해 주세요': 'Tracking engine not loaded — reload the panel (↻)',
+    '고정할 영상 클립을 먼저 선택하세요': 'Select the video clip to stabilize first',
+    '붙일 클립을 먼저 선택하세요': 'Select the clip to attach first',
+    '클립이 너무 짧아요': 'The clip is too short',
+    '이 영역은 무늬가 부족해서 따라가기 어려워요 → 모서리·글자·얼굴처럼 뚜렷한 곳을 포함해 다시 지정하세요': 'Not enough detail here to track → include clear detail such as corners, text or a face',
+    '중지했어요': 'Stopped',
+    '대상을 따라가지 못했어요 → 영역을 조금 넓혀서 다시 지정해 보세요': 'Lost the subject → try a slightly larger area',
+    '먼저 \"① 화면 가져와서 추적하기\"로 추적해 주세요': 'Track first with "① Grab frame & track"',
+    '적용할 클립을 먼저 선택하세요': 'Select a clip to apply to first',
+    '속성(위치·비율·회전)을 하나 이상 켜 주세요': 'Turn on at least one property (position, scale, rotation)',
+    '선택한 클립이 추적한 구간과 겹치지 않아요': 'The selected clip does not overlap the tracked range',
+    '키프레임을 넣는 중…': 'Writing keyframes…',
+    '클립을 먼저 선택하세요': 'Select a clip first',
+    '이 프리미어에서는 화면 캡처를 쓸 수 없어요': 'Frame capture is not available in this Premiere',
+    '화면을 캡처하지 못했어요': 'Could not capture the frame',
+    '캡처한 화면을 불러오지 못했어요': 'Could not load the captured frame',
+    '캡처한 화면을 읽지 못했어요': 'Could not read the captured frame',
+    '모션 속성을 찾지 못했어요': 'Motion properties not found',
+    '모퉁이 고정(Corner Pin) 효과를 추가하지 못했어요': 'Could not add the Corner Pin effect',
+    '변형(Transform) 효과의 속성이 예상과 달라요': 'Unexpected Transform effect properties',
+    '속성을 찾지 못했어요': 'Property not found',
+    '클립을 찾지 못했어요': 'Clip not found',
+    "⇄ 뒤집기": "⇄ Reverse",
+    "All 전체": "All",
+    "골라서": "Pick",
+    "Linear (원래대로)": "Linear (reset)",
+    "곡선 적용": "Apply curve",
+    "곡선": "Curves",
+    "모션블러": "Motion blur",
+    "마우스를 올리면 미리보기 · 우클릭: 내 곡선 삭제": "Hover to preview · right-click: delete my curve",
+    "클립에 이미 있는 키프레임 사이를 이 곡선 모양으로 채워요. 직접 찍은 키프레임에도 돼요. 곡선을 바꿔서 다시 누르면 교체되고,": "Fills the gaps between the keyframes already on the clip with this curve shape — works on keyframes you set yourself too. Pick another curve and press again to replace it;",
+    "로 원래대로 돌아가요.": "returns to the original.",
+    "를 고르면 원하는 속성·구간만 바꿀 수 있어요.": "lets you change only the properties and segments you want.",
+    "빠르게 넣기": "Quick insert",
+    "선택한 클립 길이에 맞춰 위쪽 빈 트랙에 · 선택이 없으면 재생헤드부터 5초": "Matches the selected clips on a free track above · no selection: 5s from the playhead",
+    '선택 클립 길이에 맞춰 · 없으면 재생헤드부터 5초': 'Fits selected clips · else 5s from playhead',
+    '선택한 클립 길이에 맞춰, 다른 클립과 겹치지 않게 위쪽 빈 트랙에 넣어요 (빈 트랙이 없으면 트랙을 추가) · 선택이 없으면 재생헤드부터 5초': 'Inserted on a free track above, matching the selected clips without overlapping others (adds a track if needed) · no selection: 5s from the playhead',
+    "＋ 조정 레이어": "＋ Adjustment layer",
+    "＋ 검은 화면": "＋ Black screen",
+    "속성과 구간 고르기": "Pick properties and segments",
+    "곡선을 넣을 키프레임 사이를 눌러서 고르세요": "Click the keyframe segments to curve",
+    "모두": "All",
+    "없음": "None",
+    "취소": "Cancel",
+    "적용": "Apply",
+    "재생헤드 구간": "At playhead",
+    "곡선의 앞뒤를 뒤집어요 (멈추는 곡선 ↔ 출발하는 곡선)": "Reverse the curve (ease-out ↔ ease-in)",
+    "선택한 클립의 키프레임 있는 속성 전체에": "All keyframed properties of the selected clips",
+    "속성과 키프레임 구간을 골라서": "Choose properties and keyframe segments",
+    "모션(Motion)으로 움직인 클립을 변형(Transform) 효과로 옮기고 모션블러(셔터 180°)를 켜요": "Moves Motion animation to a Transform effect and turns on motion blur (shutter 180°)",
+    "곡선을 빼고 원래 키프레임(일정한 속도)으로 되돌려요": "Remove the curve and go back to the original (constant speed) keyframes",
+    "일정한 속도": "Constant speed",
+    "빠르게 출발해 부드럽게 멈춤": "Fast start, smooth stop",
+    "빠르게 출발해 튕기듯 멈춤": "Fast start, springy stop",
+    "천천히 출발 → 빨라졌다 → 부드럽게 멈춤": "Slow start → faster → smooth stop",
+    "천천히 출발해 점점 빨라짐": "Slow start, speeds up",
+    "양쪽 다 부드럽게": "Smooth on both ends",
+    "확 나갔다가 길게 멈춤": "Shoots out, long settle",
+    "살짝 지나쳤다 돌아옴": "Overshoots a little and comes back",
+    "고무줄처럼 여러 번 출렁이며 멈춤": "Wobbles like a rubber band before stopping",
+    "바닥에 튕기듯 통통 멈춤": "Bounces to a stop",
+    "지금 곡선을 이름 붙여 저장": "Name and save the current curve",
+    "이 곡선은 모양이 정해져 있어요 → 손잡이로 바꾸려면 다른 곡선을 먼저 고르세요": "This curve has a fixed shape → pick another curve to edit with handles",
+    "곡선 이름을 입력하세요": "Enter a curve name",
+    "내 곡선은 50개까지 저장할 수 있어요 → 안 쓰는 곡선을 우클릭해서 지워주세요": "You can save up to 50 curves → right-click unused ones to delete",
+    "선택한 대상에 키프레임이 2개 이상인 속성이 없어요": "No selected property has 2 or more keyframes",
+    "곡선 적용 중…": "Applying curve…",
+    "선택한 클립에 키프레임이 2개 이상인 속성이 없어요": "The selected clips have no property with 2 or more keyframes",
+    "곡선을 넣을 구간을 고르고 적용을 누르세요": "Pick the segments to curve and press Apply",
+    "구간을 하나 이상 고르세요": "Pick at least one segment",
+    "타임라인에서 클립을 먼저 선택하세요": "Select a clip in the timeline first",
+    "되돌릴 곡선 기록이 없어요 (패널을 다시 열면 기록이 사라져요)": "No curve history to undo (it is cleared when the panel reopens)",
+    "검은 화면 그림을 만들지 못했어요": "Could not create the black image",
+    "검은 화면 넣는 중…": "Inserting black screen…",
+    "조정 레이어 넣는 중…": "Inserting adjustment layer…",
+    "프로젝트에 조정 레이어가 없어요 → 프로젝트 패널 › 새 항목 › 조정 레이어를 한 번 만들어 두면, 다음부터 이 버튼이 그걸 써서 넣어요": "No adjustment layer in the project → create one once via Project panel › New Item › Adjustment Layer, and this button will use it from then on",
+    "검은 화면 그림을 가져오지 못했어요 → \"진단 정보 복사\"를 눌러 알려주세요": "Could not import the black image → press \"Copy diagnostics\" and send it",
+    "\n우클릭: 삭제": "\nRight-click: delete"
   };
   /* 이어 붙인 문장 조각 (긴 것부터 바꿈) */
   var KO_EN_PART = {
@@ -113,8 +231,51 @@
     '✓ 원래 키프레임으로 복원 · 속성 ': '✓ Restored original keyframes · properties ', '프리미어와 연결하는 중… (': 'Connecting to Premiere… (',
     '✓ 새 버전으로 자동 업데이트됐어요 · ': '✓ Auto-updated to the new version · ', '준비 완료 · ': 'Ready · ',
     '프리미어와 연결되지 않았어요 — 프리미어를 재시작해 보세요 · 계속되면 "진단 정보 복사"를 눌러 알려주세요 (': 'Not connected to Premiere — try restarting Premiere · if it continues, press "Copy diagnostics" and send it (',
-    '(자동 측정)': '(auto)', '), 폭 ': '), width ', '오류: ': 'Error: ', '선택한 ': 'Add to selected ', '클립에 추가': 'clips', '타임라인에서 ': 'In the timeline, ',
-    '클립을 먼저 선택하세요': 'select a clip first'
+    '(자동 측정)': '(auto)', ' · 글자 경계 ': ' · ', '곳 맞춤': ' boundaries fitted', '), 폭 ': '), width ', '오류: ': 'Error: ', '선택한 ': 'Add to selected ', '클립에 추가': 'clips', '타임라인에서 ': 'In the timeline, ',
+    '클립을 먼저 선택하세요': 'select a clip first',
+    '프레임 추적 예정': ' frames to track',
+    '프레임 (': ' frames (',
+    ') · 정확도 ': ') · accuracy ',
+    '프레임 · 약 ': ' frames · about ',
+    '초 남음': 's left',
+    '대상을 지정하고 \"추적 시작\"을 누르세요': 'Mark the subject and press "Start tracking"',
+    ' · 인·아웃 구간이 클립과 겹치지 않아 클립 전체를 추적해요': ' · In–Out does not overlap the clip, tracking the whole clip',
+    '추적할 구간이 너무 길어요 (': 'The range is too long (',
+    '프레임) → 범위를 \"인·아웃 구간\"으로 줄이거나 간격을 늘려 주세요': ' frames) → shorten it with "In–Out range" or raise the interval',
+    ' → \"진단 정보 복사\"를 눌러 알려주세요': ' → press "Copy diagnostics" and send it',
+    ' · 중간에 대상을 놓쳐서 ': ' · lost the subject, only ',
+    '프레임까지만 들어갔어요': ' frames were applied',
+    ' · 중지한 곳까지만 들어갔어요': ' · applied up to where you stopped',
+    '지금 추적 결과는 \"': 'The current track is for "',
+    '\"용이에요 → \"': '" → for "',
+    '\" 방식으로 다시 추적해 주세요': '" please track again in that mode',
+    '개 · 모션에 키프레임 ': ' · Motion keyframes ',
+    '개 · 변형 효과에 키프레임 ': ' · Transform keyframes ',
+    '개 · 모퉁이 고정에 키프레임 ': ' · Corner Pin keyframes ',
+    ' · 실패 ': ' · failed ',
+    ' · 구간 밖 ': ' · out of range ',
+    '개 제외': ' skipped',
+    '✓ 추적 키프레임 지움 · 모션 속성 ': '✓ Tracking keyframes cleared · Motion properties ',
+    '개 · 모퉁이 고정 ': ' · Corner Pin ',
+    ' · 변형 효과에 넣은 추적은 위의 \"효과 지우기\"로 지워요': ' · tracking written to a Transform effect is removed with "Clear effects" above',
+    "✓ 곡선 적용 · ": "✓ Curve applied · ",
+    " · 속성 ": " · properties ",
+    "✓ 곡선 \"": "✓ Curve \"",
+    "✓ Linear · 원래 키프레임으로 되돌림 · 속성 ": "✓ Linear · restored original keyframes · properties ",
+    "모션 → 변형 효과로 옮기고 블러 ": "moved Motion → Transform with blur ",
+    "블러 켬 ": "blur on ",
+    "모션블러를 넣지 못했어요 · ": "Could not add motion blur · ",
+    " · 건너뜀: ": " · skipped: ",
+    "움직임(키프레임)이 없음 ": "no keyframes ",
+    "이미 변형 효과에 키프레임이 있음 ": "Transform already keyed ",
+    "영상 크기가 시퀀스와 달라서 옮기면 화면이 바뀜 ": "clip size differs from sequence ",
+    "모션 위치·크기를 고정값으로 바꿔 둔 클립 ": "Motion has fixed changed values ",
+    "변형 효과를 추가하지 못함 ": "could not add Transform ",
+    "검은 화면을(를) 넣지 못했어요 (": "Could not insert black screen (",
+    "조정 레이어을(를) 넣지 못했어요 (": "Could not insert adjustment layer (",
+    "✓ 검은 화면 ": "✓ Black screen ",
+    "✓ 조정 레이어 ": "✓ Adjustment layer ",
+    '고정': 'Stabilize'
   };
   var KO_EN_RULES = [
     [/선택 (\d+)개/g, 'Selected $1'], [/선택 클립 (\d+)개에 바로 반영/g, 'applied to $1 selected clip(s)'], [/✓ 모션 효과 (\d+)개 삭제/g, '✓ Removed $1 motion effects'],
@@ -245,8 +406,9 @@
    */
   var DEF = {
     opts: { size: 3, speed: 3, dur: 0, zoomRate: 0, anchor: 'start', blur: true, cat: 'all', step: 1, mini: false, scope: 'all',
-      kinds: { pos: true, scale: true, rot: true, op: true, other: false },
-      typing: { text: '', fpc: 2, width: '', center: '' }, outside: false, pivot: [0.5, 0.5], autoArea: true, fillColor: 'yellow' },
+      kinds: { pos: true, scale: true, rot: true, op: true, other: false }, curveAll: true,
+      typing: { text: '', fpc: 4, width: '', center: '' }, outside: false, pivot: [0.5, 0.5], autoArea: true, fillColor: 'yellow',
+      trk: { mode: 'follow', range: 'clip', step: 1, pos: true, scale: true, rot: true, smooth: 15, blur: false, zoom: 100 } },
     tipOff: false,
     lang: 'ko',
     mig: 0,
@@ -353,6 +515,7 @@
       document.querySelectorAll('.pane').forEach(function (p) { p.classList.toggle('on', p.id === 'tab-' + b.dataset.tab); });
       if (b.dataset.tab === 'curve') drawCurve();
       if (b.dataset.tab === 'fx') openFxTab();
+      if (b.dataset.tab === 'track') openTrkTab();
       btnFold.style.visibility = b.dataset.tab === 'motion' ? '' : 'hidden';
     });
   });
@@ -410,11 +573,11 @@
   var zoomRow = document.getElementById('zoomRow');
   seg(document.getElementById('optZoomRate'), ['0', '1', '2', '3', '5'], ['클립에 맞춤', '1%/s', '2%/s', '3%/s', '5%/s'],
     function () { return opts.zoomRate || 0; }, function (v) { opts.zoomRate = +v; renderGrid(); renderMini(); });
-  seg(document.getElementById('optScope'), null, null,
-    function () { return opts.scope; }, function (v) { opts.scope = v; });
+  seg(document.getElementById('optCurveAll'), null, null,
+    function () { return opts.curveAll === false ? '0' : '1'; }, function (v) { opts.curveAll = v === '1'; paintKindsRow(); });
   seg(document.getElementById('optStep'), null, null,
     function () { return opts.step; }, function (v) { opts.step = +v; });
-  seg(document.getElementById('optFpc'), ['1', '2', '3', '4'], ['1f', '2f', '3f', '4f'],
+  seg(document.getElementById('optFpc'), ['2', '3', '4', '6'], ['2f 빠름', '3f', '4f 보통', '6f 천천히'],
     function () { return opts.typing.fpc; }, function (v) { opts.typing.fpc = +v; renderGrid(); });
 
   var blurBtn = document.getElementById('optBlur');
@@ -754,11 +917,27 @@
     var area = null;
     if (r.ok) {
       var im = await loadFrame(r.path);
-      if (im) area = bboxOf(im);
+      if (im) { area = bboxOf(im); if (area) area.ink = inkOf(im, area); }
       dropFrame(r.path);                     /* 잰 다음 바로 삭제 */
     }
     areaCache[key] = area;
     return area;
+  }
+  /* 글자 영역 안에서 세로 줄마다 글자 픽셀 양 (1000칸, 화면 가로 %) → 타이핑 경계를 실제 글자 틈에 맞출 때 씀 */
+  function inkOf(im, a) {
+    try {
+      var W = Math.min(im.width || im.naturalWidth, 1920), H = Math.max(1, Math.round((im.height || im.naturalHeight) * W / (im.width || im.naturalWidth)));
+      var c = document.createElement('canvas'); c.width = W; c.height = H;
+      var g = c.getContext('2d'); g.drawImage(im, 0, 0, W, H);
+      var y0 = Math.max(0, Math.floor(a.T / 100 * H)), y1 = Math.min(H, Math.ceil(a.B / 100 * H));
+      var d = g.getImageData(0, y0, W, Math.max(1, y1 - y0)).data, rows = Math.max(1, y1 - y0), N = 1000, v = [], x, y;
+      for (x = 0; x < N; x++) v.push(0);
+      for (y = 0; y < rows; y++) for (x = 0; x < W; x++) {
+        var i = (y * W + x) * 4;
+        if (Math.max(d[i], d[i + 1], d[i + 2]) > 60 && d[i + 3] > 0) v[Math.min(N - 1, Math.floor(x / W * N))]++;
+      }
+      return { v: v };
+    } catch (e) { return null; }
   }
   function bboxOf(im) {
     try {
@@ -819,8 +998,13 @@
     g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
   }
   /* 화면(시퀀스 프레임)은 캔버스의 가운데 60% 영역 */
+  /* 화면(16:9) 영역: 캔버스 가운데, 바깥 여백은 들어오고 나가는 움직임용 */
+  function scr(g) {
+    var W = g.canvas.width, H = g.canvas.height, sh = Math.min(H * 0.62, W * 0.6 * 9 / 16), sw = sh * 16 / 9;
+    return { W: W, H: H, sw: sw, sh: sh, x0: (W - sw) / 2, y0: (H - sh) / 2 };
+  }
   function drawContent(g, st, kind, text) {
-    var W = g.canvas.width, H = g.canvas.height, w = W * 0.6, h = H * 0.6;
+    var R = scr(g), W = R.W, w = R.sw, h = R.sh;
     if (kind === 'typing') {
       g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle';
       var fs = h * 0.3; g.font = '700 ' + fs + 'px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
@@ -840,7 +1024,7 @@
     }
   }
   function drawFrame(g, st, kind, text, alpha, fi) {
-    var W = g.canvas.width, H = g.canvas.height, sw = W * 0.6, sh = H * 0.6, x0 = W * 0.2, y0 = H * 0.2;
+    var R = scr(g), W = R.W, H = R.H, sw = R.sw, sh = R.sh, x0 = R.x0, y0 = R.y0;
     g.save();
     /* 자르기: 화면 기준 % */
     var c = st.crop;
@@ -880,9 +1064,10 @@
     }
   }
   function drawScreen(g) {
-    var W = g.canvas.width, H = g.canvas.height;
-    g.strokeStyle = '#3a3a3a'; g.lineWidth = 1; g.setLineDash([3, 3]);
-    g.strokeRect(W * 0.2 + 0.5, H * 0.2 + 0.5, W * 0.6 - 1, H * 0.6 - 1);
+    var R = scr(g), lw = Math.max(1, Math.round(R.H / 60));
+    g.fillStyle = '#1b1b1b'; g.fillRect(R.x0, R.y0, R.sw, R.sh);
+    g.strokeStyle = '#444'; g.lineWidth = lw; g.setLineDash([3 * lw, 3 * lw]);
+    g.strokeRect(R.x0 + lw / 2, R.y0 + lw / 2, R.sw - lw, R.sh - lw);
     g.setLineDash([]);
   }
   function kindOf(preset, pv) { return pv.text ? 'typing' : (preset.cat === 'text' || preset.cat === 'caption') ? 'text' : 'video'; }
@@ -907,6 +1092,19 @@
       var idx = Math.round(s + (e - s) * k / 4);
       drawFrame(g, frames[idx], kind, pv.text, k === 4 ? 1 : 0.12 + k * 0.1, idx);
     }
+    drawArrow(g, frames[s], frames[e]);
+  }
+  /* 위치 이동이 있으면 시작→끝 화살표로 방향을 한눈에 */
+  function drawArrow(g, a, b) {
+    var R = scr(g), dx = (b.pos[0] - a.pos[0]) * R.sw, dy = (b.pos[1] - a.pos[1]) * R.sh, L = Math.sqrt(dx * dx + dy * dy);
+    if (L < R.sh * 0.18) return;
+    var cx = R.W / 2, cy = R.H / 2, k = Math.min(1, R.sw * 0.42 / L), ux = dx / L, uy = dy / L;
+    var x1 = cx - dx * k / 2, y1 = cy - dy * k / 2, x2 = cx + dx * k / 2, y2 = cy + dy * k / 2, hs = Math.max(4, R.H * 0.09);
+    g.save(); g.strokeStyle = g.fillStyle = 'rgba(255,214,90,.95)'; g.lineWidth = Math.max(1.5, R.H / 40); g.lineCap = 'round';
+    g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2 - ux * hs * 0.6, y2 - uy * hs * 0.6); g.stroke();
+    g.beginPath(); g.moveTo(x2, y2); g.lineTo(x2 - ux * hs - uy * hs * 0.6, y2 - uy * hs + ux * hs * 0.6);
+    g.lineTo(x2 - ux * hs + uy * hs * 0.6, y2 - uy * hs - ux * hs * 0.6); g.closePath(); g.fill();
+    g.restore();
   }
   var playing = null;
   function play(cv, pv, kind) {
@@ -966,7 +1164,7 @@
     var g = members ? MK.GROUPS[preset.group] : null;
     var el = document.createElement(members ? 'div' : 'button');
     el.className = 'cardP' + (g && g.layout === 'dpad' ? ' dpad' : '');
-    var cv = document.createElement('canvas'); cv.width = 160; cv.height = 80;
+    var cv = document.createElement('canvas'); cv.width = 216; cv.height = 96;
     var hd = document.createElement('div'); hd.className = 'hd';
     var nm = document.createElement('span'); nm.className = 'nm';
     var en = document.createElement('span'); en.className = 'en';
@@ -1192,7 +1390,7 @@
           busy = false;
           return status(nameOf(preset) + ' 적용 · 자막 글자를 못 읽어서 "' + src.text + '"(' + lay.chars.length + '글자) 기준이에요 → 타이핑 설정 "문장"에 자막 내용을 넣어주세요', 'warn');
         }
-        extra += ' · ' + lay.chars.length + '글자(' + SRC[src.from] + '), 폭 ' + Math.round(lay.width) + '%' + (lay.measured ? '(자동 측정)' : '');
+        extra += ' · ' + lay.chars.length + '글자(' + SRC[src.from] + '), 폭 ' + Math.round(lay.width) + '%' + (lay.measured ? '(자동 측정)' : '') + (lay.snapped ? ' · 글자 경계 ' + lay.snapped + '곳 맞춤' : '');
       }
       if (r.failed && r.failed.length && r.failed[0] === 'nobelow' && !r.done) {
         status(nameOf(preset) + ' 은 원본 위에 복제본이 있어야 해요 → ' + DUP_HOW, 'warn');
@@ -1312,30 +1510,55 @@
     status(r.removed ? '✓ 모션 효과 ' + r.removed + '개 삭제' : '✓ 변형 효과 값을 초기화했어요', 'ok');
   }
 
-  /* ---------- 커브 편집기 ---------- */
+  /* ---------- 커브 편집기 (Super Pad 방식 참고: 곡선 버튼 · All/골라서 · Linear · 뒤집기 · 모션블러) ---------- */
   var cv = document.getElementById('cv'), g = cv.getContext('2d');
   var readout = document.getElementById('readout'), ball = document.getElementById('ball');
   var BOX = { x: 60, y: 90, w: 480, h: 240 };       // 0~1 영역 (위아래로 오버슈트 여유)
   function toPx(x, y) { return [BOX.x + x * BOX.w, BOX.y + (1 - y) * BOX.h]; }
   function fromPx(px, py) { return [(px - BOX.x) / BOX.w, 1 - (py - BOX.y) / BOX.h]; }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-
+  function cloneCurve(c) { return JSON.parse(JSON.stringify(c)); }
+  function curveName(c) {
+    for (var i = 0; i < MK.CURVES.length; i++) if (MK.sameCurve(MK.CURVES[i].c, c)) return isEn() ? MK.CURVES[i].en : MK.CURVES[i].name;
+    for (var j = 0; j < S.mine.length; j++) if (MK.sameCurve(S.mine[j].c, c)) return S.mine[j].name;
+    return '';
+  }
+  var hoverCurve = null;
+  /* 곡선 모양을 작은 그림으로 */
+  function drawThumb(c2, curve, on) {
+    var gg = c2.getContext('2d'), W = c2.width, H = c2.height, pad = 6, lo = -0.3, hi = 1.3;
+    gg.clearRect(0, 0, W, H);
+    var X = function (x) { return pad + x * (W - pad * 2); }, Y = function (y) { return pad + (hi - y) / (hi - lo) * (H - pad * 2); };
+    gg.strokeStyle = '#333'; gg.lineWidth = 1; gg.setLineDash([2, 2]);
+    gg.beginPath(); gg.moveTo(X(0), Y(0)); gg.lineTo(X(1), Y(0)); gg.moveTo(X(0), Y(1)); gg.lineTo(X(1), Y(1)); gg.stroke(); gg.setLineDash([]);
+    gg.strokeStyle = on ? '#fff' : '#4f9cff'; gg.lineWidth = 2; gg.beginPath();
+    MK.curveSamples(curve, 40).forEach(function (p, i) { if (i) gg.lineTo(X(p[0]), Y(p[1])); else gg.moveTo(X(p[0]), Y(p[1])); });
+    gg.stroke();
+  }
   function drawCurve() {
-    var curve = S.curve;
+    var curve = hoverCurve || S.curve, shape = MK.isShape(curve);
     g.clearRect(0, 0, cv.width, cv.height);
     g.strokeStyle = '#2a2a2a'; g.lineWidth = 1;
     for (var i = 0; i <= 4; i++) {
       var a = toPx(i / 4, 0), b = toPx(i / 4, 1), c = toPx(0, i / 4), d = toPx(1, i / 4);
       g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.moveTo(c[0], c[1]); g.lineTo(d[0], d[1]); g.stroke();
     }
-    var p0 = toPx(0, 0), p3 = toPx(1, 1), p1 = toPx(curve[0], curve[1]), p2 = toPx(curve[2], curve[3]);
-    g.strokeStyle = '#555'; g.lineWidth = 2;
-    g.beginPath(); g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]); g.moveTo(p3[0], p3[1]); g.lineTo(p2[0], p2[1]); g.stroke();
-    g.strokeStyle = '#4f9cff'; g.lineWidth = 4;
-    g.beginPath(); g.moveTo(p0[0], p0[1]); g.bezierCurveTo(p1[0], p1[1], p2[0], p2[1], p3[0], p3[1]); g.stroke();
-    [p1, p2].forEach(function (p) { g.fillStyle = '#fff'; g.beginPath(); g.arc(p[0], p[1], 11, 0, Math.PI * 2); g.fill(); });
+    var p0 = toPx(0, 0), p3 = toPx(1, 1);
+    if (shape) {
+      g.strokeStyle = '#4f9cff'; g.lineWidth = 4; g.beginPath();
+      MK.curveSamples(curve, 120).forEach(function (p, k) { var q = toPx(p[0], p[1]); if (k) g.lineTo(q[0], q[1]); else g.moveTo(q[0], q[1]); });
+      g.stroke();
+    } else {
+      var p1 = toPx(curve[0], curve[1]), p2 = toPx(curve[2], curve[3]);
+      g.strokeStyle = '#555'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]); g.moveTo(p3[0], p3[1]); g.lineTo(p2[0], p2[1]); g.stroke();
+      g.strokeStyle = '#4f9cff'; g.lineWidth = 4;
+      g.beginPath(); g.moveTo(p0[0], p0[1]); g.bezierCurveTo(p1[0], p1[1], p2[0], p2[1], p3[0], p3[1]); g.stroke();
+      if (!hoverCurve) [p1, p2].forEach(function (p) { g.fillStyle = '#fff'; g.beginPath(); g.arc(p[0], p[1], 11, 0, Math.PI * 2); g.fill(); });
+    }
     [p0, p3].forEach(function (p) { g.fillStyle = '#4f9cff'; g.beginPath(); g.arc(p[0], p[1], 6, 0, Math.PI * 2); g.fill(); });
-    readout.textContent = 'cubic-bezier(' + curve.map(function (v) { return v.toFixed(2); }).join(', ') + ')';
+    var nm = curveName(curve);
+    readout.textContent = (nm ? nm + ' · ' : '') + (shape ? (isEn() ? 'fixed shape' : '모양 고정 곡선') + (curve.rev ? ' (⇄)' : '') : 'cubic-bezier(' + curve.map(function (v) { return v.toFixed(2); }).join(', ') + ')');
     paintCurveChips();
   }
   var drag = -1;
@@ -1344,7 +1567,9 @@
     return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height];
   }
   cv.addEventListener('pointerdown', function (e) {
-    var curve = S.curve, p = evtPos(e), h1 = toPx(curve[0], curve[1]), h2 = toPx(curve[2], curve[3]);
+    var curve = S.curve;
+    if (MK.isShape(curve)) { status('이 곡선은 모양이 정해져 있어요 → 손잡이로 바꾸려면 다른 곡선을 먼저 고르세요', 'warn'); return; }
+    var p = evtPos(e), h1 = toPx(curve[0], curve[1]), h2 = toPx(curve[2], curve[3]);
     var d1 = Math.hypot(p[0] - h1[0], p[1] - h1[1]), d2 = Math.hypot(p[0] - h2[0], p[1] - h2[1]);
     drag = d1 < d2 ? 0 : 2;
     if (Math.min(d1, d2) > 60) { drag = -1; return; }
@@ -1358,14 +1583,15 @@
     drawCurve();
   });
   cv.addEventListener('pointerup', function () { if (drag >= 0) { drag = -1; save(); } });
+  document.getElementById('btnRev').addEventListener('click', function () { S.curve = MK.reverseCurve(S.curve); save(); drawCurve(); });
 
-  /* 공 미리보기 */
+  /* 공 미리보기 (곡선 위에 마우스를 올리면 그 곡선으로) */
   var t0 = 0;
   function anim(ts) {
     if (!t0) t0 = ts;
     if (document.getElementById('tab-curve').classList.contains('on') && !isMini()) {
       var cyc = ((ts - t0) % 1600) / 1000, x = Math.min(1, cyc / 0.9);
-      var y = MK.bezier(S.curve[0], S.curve[1], S.curve[2], S.curve[3])(x);
+      var y = MK.easeFn(hoverCurve || S.curve)(x);
       var track = ball.parentNode.clientWidth - 14;
       ball.style.transform = 'translateX(' + (y * track) + 'px)';
     }
@@ -1374,65 +1600,589 @@
   requestAnimationFrame(anim);
 
   var listEl = document.getElementById('curveList');
-  function same(a, b) { for (var i = 0; i < 4; i++) if (Math.abs(a[i] - b[i]) > 0.005) return false; return true; }
   function renderCurveChips() {
     listEl.innerHTML = '';
-    MK.CURVES.map(function (c) { return { name: c.name, c: c.c }; })
+    MK.CURVES.map(function (c) { return { name: isEn() ? c.en : c.name, desc: c.desc, c: c.c }; })
       .concat(S.mine.map(function (m, i) { return { name: m.name, c: m.c, mine: i }; }))
       .forEach(function (c) {
-        var b = document.createElement('button'); b.textContent = c.name;
-        b._c = c.c; if (c.mine !== undefined) b.classList.add('mine', 'noTr');
-        b.addEventListener('click', function () { S.curve = c.c.slice(); save(); drawCurve(); });
+        var b = document.createElement('button'); b.className = 'curveItem' + (c.mine !== undefined ? ' mine' : '');
+        var cvs = document.createElement('canvas'); cvs.width = 72; cvs.height = 44;
+        var nm = document.createElement('span'); nm.textContent = c.name; if (c.mine !== undefined) nm.className = 'noTr';
+        b.appendChild(cvs); b.appendChild(nm); b._c = c.c; b._cv = cvs;
+        b.title = (c.desc ? c.desc : c.name) + (c.mine !== undefined ? '\n우클릭: 삭제' : '');
+        drawThumb(cvs, c.c, false);
+        b.addEventListener('click', function () { hoverCurve = null; S.curve = cloneCurve(c.c); save(); drawCurve(); });
+        b.addEventListener('mouseenter', function () { hoverCurve = c.c; t0 = 0; drawCurve(); });
+        b.addEventListener('mouseleave', function () { hoverCurve = null; drawCurve(); });
         if (c.mine !== undefined) b.addEventListener('contextmenu', function (e) {
           e.preventDefault(); S.mine.splice(c.mine, 1); save(); renderCurveChips(); paintCurveChips();
         });
         listEl.appendChild(b);
       });
   }
-  function paintCurveChips() { listEl.querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', same(b._c, S.curve)); }); }
+  function paintCurveChips() {
+    listEl.querySelectorAll('.curveItem').forEach(function (b) {
+      var on = MK.sameCurve(b._c, S.curve);
+      if (b.classList.contains('on') !== on) { b.classList.toggle('on', on); drawThumb(b._cv, b._c, on); }
+    });
+  }
   document.getElementById('btnSave').addEventListener('click', function () {
     var inp = document.getElementById('saveName'), name = inp.value.trim();
-    if (!name) { inp.focus(); return status('커브 이름을 입력하세요', 'warn'); }
-    S.mine.push({ name: name, c: S.curve.slice() }); save();
-    inp.value = ''; renderCurveChips(); paintCurveChips(); status('✓ 커브 "' + name + '" 저장', 'ok');
+    if (!name) { inp.focus(); return status('곡선 이름을 입력하세요', 'warn'); }
+    if (S.mine.length >= 50) return status('내 곡선은 50개까지 저장할 수 있어요 → 안 쓰는 곡선을 우클릭해서 지워주세요', 'warn');
+    S.mine.push({ name: name, c: cloneCurve(S.curve) }); save();
+    inp.value = ''; renderCurveChips(); paintCurveChips(); status('✓ 곡선 "' + name + '" 저장', 'ok');
   });
 
-  /* 대상 칩 */
+  /* 대상 칩 (All 일 때만) */
   var kindsEl = document.getElementById('kinds');
   function paintKinds() { kindsEl.querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', !!opts.kinds[b.dataset.v]); }); }
+  function paintKindsRow() { var r = document.getElementById('kindsRow'); if (r) r.style.display = opts.curveAll === false ? 'none' : ''; }
   kindsEl.addEventListener('click', function (e) {
     var b = e.target.closest('button'); if (!b) return;
     opts.kinds[b.dataset.v] = !opts.kinds[b.dataset.v]; paintKinds(); save();
   });
 
-  /* 커브 적용 / 복원 — 원래 키프레임은 패널이 열려 있는 동안 기억 */
+  /* 곡선 적용 / Linear — 원래 키프레임은 패널이 열려 있는 동안 기억 */
   var snaps = {};
+  async function writeCurve(read, pick) {
+    var writes = MK.bakeCurve(read, S.curve, opts.step, opts.curveAll === false ? null : opts.kinds, snaps, 'all', pick);
+    if (!writes.length) return status('선택한 대상에 키프레임이 2개 이상인 속성이 없어요', 'warn');
+    status('곡선 적용 중…');
+    var r = await call('mk_writeKeys', writes);
+    if (!r.ok) return status(errText(r), 'err');
+    status('✓ 곡선 적용 · ' + (curveName(S.curve) || '') + ' · 속성 ' + r.done + '개', 'ok');
+  }
+  /* 골라서: 속성과 구간 고르기 창 */
+  var segBox = document.getElementById('segBox'), segList = document.getElementById('segList'), segRead = null;
+  function fmtT(ticks, speed) { return (ticks / 254016000000 / (speed || 1)).toFixed(2) + '초'; }
+  function openSegs(read) {
+    segRead = read; segList.innerHTML = '';
+    var n = 0, only = null;
+    read.clips.forEach(function (clip) {
+      clip.params.forEach(function (prm) {
+        if (prm.keys.length < 2 || typeof prm.keys[0][1] === 'object' && prm.keys[0][1] === null) return;
+        var row = document.createElement('div'); row.className = 'segRow';
+        var nm = document.createElement('div'); nm.className = 'segName';
+        nm.innerHTML = '<b></b><small></small>';
+        nm.querySelector('b').textContent = (prm.cn || '') + ' › ' + (prm.pn || prm.kind);
+        nm.querySelector('small').textContent = read.clips.length > 1 ? (clip.name || '') : '';
+        nm.querySelector('b').className = 'noTr';
+        var chips = document.createElement('div'); chips.className = 'segChips';
+        for (var i = 0; i < prm.keys.length - 1; i++) {
+          var b = document.createElement('button'); b.className = 'segChip on';
+          b.dataset.key = clip.id + '|' + prm.ci + '|' + prm.pi; b.dataset.i = i;
+          b.dataset.a = prm.keys[i][0]; b.dataset.b = prm.keys[i + 1][0]; b.dataset.ph = clip.ph;
+          b.textContent = (i + 1) + '→' + (i + 2) + ' · ' + fmtT(prm.keys[i + 1][0] - prm.keys[i][0], clip.speed);
+          b.addEventListener('click', function () { this.classList.toggle('on'); });
+          chips.appendChild(b); n++; only = b;
+        }
+        row.appendChild(nm); row.appendChild(chips); segList.appendChild(row);
+      });
+    });
+    if (!n) return status('선택한 클립에 키프레임이 2개 이상인 속성이 없어요', 'warn');
+    if (n === 1) { var pk = {}; pk[only.dataset.key] = [0]; return writeCurve(read, pk); }   /* 하나뿐이면 바로 적용 */
+    segBox.classList.add('show');
+    status('곡선을 넣을 구간을 고르고 적용을 누르세요', 'ok');
+  }
+  function segChips() { return segList.querySelectorAll('.segChip'); }
+  document.getElementById('segAll').addEventListener('click', function () { segChips().forEach(function (b) { b.classList.add('on'); }); });
+  document.getElementById('segNone').addEventListener('click', function () { segChips().forEach(function (b) { b.classList.remove('on'); }); });
+  document.getElementById('segPh').addEventListener('click', function () {
+    segChips().forEach(function (b) { var ph = +b.dataset.ph; b.classList.toggle('on', ph >= +b.dataset.a && ph < +b.dataset.b); });
+  });
+  document.getElementById('segCancel').addEventListener('click', function () { segBox.classList.remove('show'); });
+  segBox.addEventListener('mousedown', function (e) { if (e.target === segBox) segBox.classList.remove('show'); });
+  document.getElementById('segApply').addEventListener('click', function () {
+    var pk = {}, n = 0;
+    segChips().forEach(function (b) { if (!b.classList.contains('on')) return; (pk[b.dataset.key] = pk[b.dataset.key] || []).push(+b.dataset.i); n++; });
+    if (!n) return status('구간을 하나 이상 고르세요', 'warn');
+    segBox.classList.remove('show');
+    writeCurve(segRead, pk);
+  });
   document.getElementById('btnCurve').addEventListener('click', async function () {
     var read = await call('mk_readKeys');
     if (!read.ok) return status(errText(read), 'err');
     if (!read.clips.length) return status('타임라인에서 클립을 먼저 선택하세요', 'warn');
-    var writes = MK.bakeCurve(read, S.curve, opts.step, opts.kinds, snaps, opts.scope);
-    if (!writes.length && opts.scope === 'playhead') return status('재생헤드가 키프레임 두 개 사이에 있어야 해요', 'warn');
-    if (!writes.length) return status('선택한 대상에 키프레임이 2개 이상인 속성이 없어요', 'warn');
-    status('커브 적용 중…');
-    var r = await call('mk_writeKeys', writes);
-    if (!r.ok) return status(errText(r), 'err');
-    status('✓ 커브 적용 · 속성 ' + r.done + '개', 'ok');
+    if (opts.curveAll === false) return openSegs(read);
+    writeCurve(read, null);
   });
   document.getElementById('btnRestore').addEventListener('click', async function () {
     var read = await call('mk_readKeys');
     if (!read.ok) return status(errText(read), 'err');
     var writes = MK.restoreCurve(read, snaps);
-    if (!writes.length) return status('복원할 기록이 없어요 (패널을 다시 열면 기록이 사라져요)', 'warn');
+    if (!writes.length) return status('되돌릴 곡선 기록이 없어요 (패널을 다시 열면 기록이 사라져요)', 'warn');
     var r = await call('mk_writeKeys', writes);
     if (!r.ok) return status(errText(r), 'err');
-    status('✓ 원래 키프레임으로 복원 · 속성 ' + r.done + '개', 'ok');
+    status('✓ Linear · 원래 키프레임으로 되돌림 · 속성 ' + r.done + '개', 'ok');
+  });
+  /* 모션블러: 모션 애니메이션 → 변형 효과 + 셔터 180° */
+  var BLUR_SKIP = { nokeys: '움직임(키프레임)이 없음', hastf: '이미 변형 효과에 키프레임이 있음', size: '영상 크기가 시퀀스와 달라서 옮기면 화면이 바뀜',
+    'static': '모션 위치·크기를 고정값으로 바꿔 둔 클립', notf: '변형 효과를 추가하지 못함' };
+  document.getElementById('btnBlur').addEventListener('click', async function () {
+    var r = await call('mk_motionBlur', { shutter: 180 });
+    if (!r.ok) return status(errText(r), 'err');
+    if (!r.clips) return status('타임라인에서 클립을 먼저 선택하세요', 'warn');
+    var msg = [];
+    if (r.moved) msg.push('모션 → 변형 효과로 옮기고 블러 ' + r.moved + '개');
+    if (r.blurred) msg.push('블러 켬 ' + r.blurred + '개');
+    var why = {}; (r.skipped || []).forEach(function (k) { why[k] = (why[k] || 0) + 1; });
+    var sk = Object.keys(why).map(function (k) { return (BLUR_SKIP[k] || k) + ' ' + why[k] + '개'; });
+    if (!msg.length) return status('모션블러를 넣지 못했어요 · ' + sk.join(', '), 'warn');
+    status('✓ ' + msg.join(' · ') + (sk.length ? ' · 건너뜀: ' + sk.join(', ') : ''), sk.length ? 'warn' : 'ok');
+  });
+
+  /* ---------- 빠르게 넣기: 조정 레이어 / 검은 화면 ---------- */
+  async function blackPng() {
+    var p = await call('mk_paths');
+    if (!p.ok) return null;
+    var path = p.dir.replace(/\\/g, '/') + '/mmk_black_' + p.w + 'x' + p.h + '.png';
+    try {
+      var CF = window.cep;
+      if (CF && CF.fs) {
+        var st = CF.fs.stat ? CF.fs.stat(path) : { err: 1 };
+        if (!st || st.err !== 0) {
+          var c = document.createElement('canvas'); c.width = p.w; c.height = p.h;
+          var gg = c.getContext('2d'); gg.fillStyle = '#000'; gg.fillRect(0, 0, p.w, p.h);
+          CF.fs.writeFile(path, c.toDataURL('image/png').split(',')[1], CF.encoding ? CF.encoding.Base64 : 'Base64');
+        }
+      }
+    } catch (e) {}
+    return path;
+  }
+  async function insertLayer(kind, btn) {
+    btn.disabled = true;
+    try {
+      var data = { kind: kind, dur: 5 };
+      if (kind === 'black') { data.png = await blackPng(); if (!data.png) return status('검은 화면 그림을 만들지 못했어요', 'err'); }
+      status(kind === 'black' ? '검은 화면 넣는 중…' : '조정 레이어 넣는 중…');
+      var r = await call('mk_insertLayer', data);
+      if (!r.ok) {
+        if (r.err === 'noadjust') return status('프로젝트에 조정 레이어가 없어요 → 프로젝트 패널 › 새 항목 › 조정 레이어를 한 번 만들어 두면, 다음부터 이 버튼이 그걸 써서 넣어요', 'warn');
+        if (r.err === 'import') return status('검은 화면 그림을 가져오지 못했어요 → "진단 정보 복사"를 눌러 알려주세요', 'err');
+        return status(errText(r), 'err');
+      }
+      var name = kind === 'black' ? '검은 화면' : '조정 레이어';
+      if (!r.done) return status(name + '을(를) 넣지 못했어요 (' + (r.fails || []).join(', ') + ')', 'warn');
+      status('✓ ' + name + ' ' + r.done + '개 · V' + r.tracks.join(', V') + (isEn() ? ' track' : ' 트랙'), 'ok');
+    } finally { btn.disabled = false; }
+  }
+  document.getElementById('btnAdj').addEventListener('click', function () { insertLayer('adjust', this); });
+  document.getElementById('btnBlack').addEventListener('click', function () { insertLayer('black', this); });
+
+  /* ---------- 트래킹 탭 ----------
+   * 화면을 프레임마다 캡처해서 패널 안에서 직접 추적(MKTrack, engine.js 맨 아래)하고,
+   * 결과를 선택한 클립의 키프레임으로 적는다.
+   *   따라가기  : 선택한 클립(자막·이미지)이 화면 속 대상을 따라감 → 모션(또는 변형) 위치·비율·회전
+   *   고정      : 선택한 영상에서 대상이 멈춰 보이게 반대로 움직임 → 변형 효과 (기준점 키프레임)
+   *   화면 합성 : 선택한 클립을 화면 속 네 모서리에 붙임 → 모퉁이 고정
+   */
+  var TRK = window.MKTrack;
+  var TRK_MAXFRAMES = 1500, TRK_SIDE = 960;
+  var TRK_HELP = {
+    follow: '붙일 클립(자막·이미지·영상)을 선택 → 화면에서 따라갈 대상을 네모로 지정하면, 선택한 클립이 그 대상을 따라 움직여요.',
+    stab: '흔들리는 영상 클립을 선택 → 멈춰 보이게 할 대상을 네모로 지정하면, 그 대상이 제자리에 있도록 영상을 반대로 움직여요.',
+    pin: '끼워 넣을 클립(위 트랙의 영상·이미지)을 선택 → 아래 화면의 모니터·휴대폰 네 모서리를 지정하면, 선택한 클립이 그 화면에 붙어요.'
+  };
+  var TRK_TITLE = { follow: '따라갈 대상 지정', stab: '고정할 대상 지정', pin: '화면의 네 모서리 지정' };
+  var TRK_MODE = { follow: '따라가기', stab: '고정', pin: '화면 합성' };
+  var TRK_ERR = { noexport: '이 프리미어에서는 화면 캡처를 쓸 수 없어요', noframe: '화면을 캡처하지 못했어요', load: '캡처한 화면을 불러오지 못했어요',
+    pixels: '캡처한 화면을 읽지 못했어요', nomotion: '모션 속성을 찾지 못했어요', nocpin: '모퉁이 고정(Corner Pin) 효과를 추가하지 못했어요',
+    tfprops: '변형(Transform) 효과의 속성이 예상과 달라요', noparam: '속성을 찾지 못했어요', clip: '클립을 찾지 못했어요' };
+  function trkErr(r) { return TRK_ERR[r.err] ? TRK_ERR[r.err] + (r.msg ? ' (' + r.msg + ')' : '') : errText(r); }
+  function T_() { return opts.trk; }
+
+  var trkBox = document.getElementById('trkBox'), trkCv = document.getElementById('trkCv'), trkG = trkCv.getContext('2d');
+  var trkTitle = document.getElementById('trkTitle'), trkSub = document.getElementById('trkSub'), trkRead = document.getElementById('trkRead');
+  var trkGo = document.getElementById('trkGo'), trkCancel = document.getElementById('trkCancel'), trkProg = document.getElementById('trkProg');
+  var trkInfo = document.getElementById('trkInfo'), trkHelp = document.getElementById('trkHelp'), trkCard = document.querySelector('.trkCard');
+  var trkSmooth = document.getElementById('trkSmooth'), trkSmoothVal = document.getElementById('trkSmoothVal');
+  var trkBlurBtn = document.getElementById('trkBlur'), trkBlurHint = document.getElementById('trkBlurHint'), trkUse = document.getElementById('trkUse');
+  var trkSes = null;     /* 지금 열려 있는 추적 창: { ctx, clip, f0, f1, fr, tpf, mode, step, gray, shot, aw, ah, poly, running, stop } */
+  var trkData = null;    /* 마지막 추적 결과: { mode, model, frames:[프레임 번호], res:[...], refIdx, tpf, aw, ah, conf } */
+  var trkBusy = false;
+
+  seg(document.getElementById('trkMode'), null, null, function () { return T_().mode; }, function (v) { T_().mode = v; paintTrk(); });
+  seg(document.getElementById('trkRange'), null, null, function () { return T_().range; }, function (v) { T_().range = v; });
+  seg(document.getElementById('trkStep'), null, null, function () { return T_().step; }, function (v) { T_().step = +v; });
+  seg(document.getElementById('trkZoom'), null, null, function () { return T_().zoom; }, function (v) { T_().zoom = +v; });
+  trkUse.addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    T_()[b.dataset.v] = !T_()[b.dataset.v];
+    if (T_().mode === 'stab') T_().pos = true;       /* 고정은 위치가 항상 들어감 */
+    paintTrk(); save();
+  });
+  trkSmooth.addEventListener('input', function () { T_().smooth = +trkSmooth.value; paintTrk(); });
+  trkSmooth.addEventListener('change', function () { save(); });
+  trkBlurBtn.addEventListener('click', function () { T_().blur = !T_().blur; paintTrk(); save(); });
+
+  function trkInfoText() {
+    if (!trkData) return '아직 없음';
+    var n = trkData.frames.length, sec = (trkData.frames[n - 1] - trkData.frames[0] + 1) * trkData.tpf / 254016000000;
+    return TRK_MODE[trkData.mode] + ' · ' + n + '프레임 (' + fmtSec(sec) + ') · 정확도 ' + Math.round(trkData.conf * 100) + '%';
+  }
+  function paintTrk() {
+    var t = T_(), m = t.mode;
+    trkHelp.textContent = TRK_HELP[m] || '';
+    document.getElementById('trkUseRow').style.display = m === 'pin' ? 'none' : '';
+    document.getElementById('trkBlurRow').style.display = m === 'pin' ? 'none' : '';
+    document.getElementById('trkZoomRow').style.display = m === 'stab' ? '' : 'none';
+    trkUse.querySelectorAll('button').forEach(function (b) {
+      var on = !!t[b.dataset.v] || (m === 'stab' && b.dataset.v === 'pos');
+      b.classList.toggle('on', on);
+    });
+    trkSmooth.value = t.smooth; trkSmoothVal.textContent = t.smooth ? String(t.smooth) : '끔';
+    trkBlurBtn.classList.toggle('on', !!t.blur);
+    trkBlurHint.textContent = m === 'follow'
+      ? (t.blur ? '변형 효과에 기록 (셔터 180°)' : '끔 · 클립의 모션 속성에 기록')
+      : (t.blur ? '셔터 180°' : '끔');
+    trkInfo.textContent = trkInfoText(); trkInfo.className = trkData ? 'ok' : '';
+    trkCard.classList.toggle('off', !trkData);
+  }
+  segs.push(paintTrk);
+  var trkTabOnce = false;
+  function openTrkTab() {
+    paintTrk();
+    if (!trkTabOnce) { trkTabOnce = true; call('mk_trackEnd'); }   /* 지난번에 꺼 둔 트랙이 남아 있으면 되돌림 */
+  }
+
+  /* ----- 화면 → 밝기 배열 ----- */
+  var trkWork = document.createElement('canvas'), trkWG = null;
+  function trkGray(im) {
+    var w = im.naturalWidth || im.width, h = im.naturalHeight || im.height;
+    if (!w || !h) return null;
+    var k = Math.min(1, TRK_SIDE / Math.max(w, h)), aw = Math.max(8, Math.round(w * k)), ah = Math.max(8, Math.round(h * k));
+    if (trkWork.width !== aw || trkWork.height !== ah || !trkWG) {
+      trkWork.width = aw; trkWork.height = ah;
+      trkWG = trkWork.getContext('2d', { willReadFrequently: true });
+    }
+    try {
+      trkWG.drawImage(im, 0, 0, aw, ah);
+      return TRK.grayFromRGBA(trkWG.getImageData(0, 0, aw, ah).data, aw, ah);
+    } catch (e) { return null; }
+  }
+  /* 한 프레임 캡처 → { gray } (작업 캔버스에 그 화면이 남아 있음) 또는 { err } */
+  async function trkGrab(frame, tpf, prevPath) {
+    var r = await call('mk_trackGrab', { at: frame * tpf, del: prevPath || '' });
+    if (!r.ok) return { err: r.err || 'noframe', msg: r.msg || '' };
+    var im = null;
+    for (var i = 0; i < 4 && !im; i++) { im = await loadFrame(r.path); if (!im) await wait(120); }   /* 파일이 아직 덜 써졌을 수 있음 */
+    if (!im) return { err: 'load', path: r.path };
+    var g = trkGray(im);
+    return g ? { gray: g, path: r.path } : { err: 'pixels', path: r.path };
+  }
+
+  /* ----- 그리기 ----- */
+  function trkPath(g, poly) {
+    g.beginPath();
+    for (var i = 0; i < poly.length; i++) { if (i) g.lineTo(poly[i][0], poly[i][1]); else g.moveTo(poly[i][0], poly[i][1]); }
+    g.closePath();
+  }
+  function trkDraw(src, poly, pts, handles) {
+    var w = trkCv.width, h = trkCv.height, u = Math.max(1, w / 520);
+    trkG.drawImage(src, 0, 0, w, h);
+    if (poly && poly.length >= 3) {
+      trkG.save();
+      trkG.fillStyle = 'rgba(0,0,0,.38)';
+      trkG.beginPath(); trkG.rect(0, 0, w, h);
+      for (var i = poly.length - 1; i >= 0; i--) { if (i === poly.length - 1) trkG.moveTo(poly[i][0], poly[i][1]); else trkG.lineTo(poly[i][0], poly[i][1]); }
+      trkG.closePath(); trkG.fill('evenodd');
+      trkPath(trkG, poly); trkG.lineWidth = 4 * u; trkG.strokeStyle = 'rgba(0,0,0,.6)'; trkG.stroke();
+      trkPath(trkG, poly); trkG.lineWidth = 2 * u; trkG.strokeStyle = '#4f9cff'; trkG.stroke();
+      trkG.restore();
+    }
+    if (pts) {
+      trkG.fillStyle = '#7dffb0';
+      for (var p = 0; p < pts.length; p++) trkG.fillRect(pts[p][0] - u, pts[p][1] - u, 2 * u, 2 * u);
+    }
+    if (handles && poly) {
+      trkG.font = 'bold ' + Math.round(11 * u) + 'px sans-serif'; trkG.textAlign = 'center'; trkG.textBaseline = 'middle';
+      for (var k = 0; k < poly.length; k++) {
+        trkG.beginPath(); trkG.arc(poly[k][0], poly[k][1], 9 * u, 0, Math.PI * 2);
+        trkG.fillStyle = '#2f6fd1'; trkG.fill(); trkG.lineWidth = 2 * u; trkG.strokeStyle = '#fff'; trkG.stroke();
+        trkG.fillStyle = '#fff'; trkG.fillText(String(k + 1), poly[k][0], poly[k][1] + u * 0.5);
+      }
+    }
+  }
+  function trkRedraw() { if (trkSes && !trkSes.running) trkDraw(trkSes.shot, trkSes.poly, null, trkSes.mode === 'pin'); }
+  function trkPolyOk(s) {
+    if (!s.poly) return false;
+    var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    s.poly.forEach(function (p) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); });
+    return x1 - x0 >= 14 && y1 - y0 >= 14;
+  }
+  function trkPaintBox() {
+    var s = trkSes; if (!s) return;
+    trkBox.classList.toggle('run', !!s.running);
+    trkGo.disabled = !s.running && !trkPolyOk(s);
+    trkGo.style.opacity = trkGo.disabled ? '.45' : '';
+    trkGo.textContent = s.running ? '중지' : '추적 시작';
+    trkCancel.style.display = s.running ? 'none' : '';
+  }
+
+  /* ----- 영역 지정 (네모 드래그 / 모서리 4개) ----- */
+  function trkPt(e) {
+    var r = trkCv.getBoundingClientRect();
+    return [Math.max(0, Math.min(trkCv.width, (e.clientX - r.left) * trkCv.width / Math.max(1, r.width))),
+            Math.max(0, Math.min(trkCv.height, (e.clientY - r.top) * trkCv.height / Math.max(1, r.height)))];
+  }
+  var trkDrag = null;
+  trkCv.addEventListener('mousedown', function (e) {
+    var s = trkSes; if (!s || s.running) return;
+    var p = trkPt(e);
+    if (s.mode === 'pin') {
+      var best = -1, bd = 1e9, lim = 26 * trkCv.width / Math.max(1, trkCv.getBoundingClientRect().width);
+      for (var i = 0; i < s.poly.length; i++) { var d = Math.hypot(s.poly[i][0] - p[0], s.poly[i][1] - p[1]); if (d < bd) { bd = d; best = i; } }
+      if (bd > lim * 3) return;
+      trkDrag = { k: best, dx: s.poly[best][0] - p[0], dy: s.poly[best][1] - p[1] };
+    } else {
+      trkDrag = { a: p };
+      s.poly = null;
+    }
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', function (e) {
+    var s = trkSes; if (!trkDrag || !s) return;
+    var p = trkPt(e);
+    if (s.mode === 'pin') s.poly[trkDrag.k] = [Math.max(0, Math.min(trkCv.width, p[0] + trkDrag.dx)), Math.max(0, Math.min(trkCv.height, p[1] + trkDrag.dy))];
+    else {
+      var a = trkDrag.a, x0 = Math.min(a[0], p[0]), x1 = Math.max(a[0], p[0]), y0 = Math.min(a[1], p[1]), y1 = Math.max(a[1], p[1]);
+      s.poly = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+    }
+    trkRedraw();
+  });
+  window.addEventListener('mouseup', function () {
+    if (!trkDrag) return;
+    trkDrag = null;
+    var s = trkSes; if (!s) return;
+    if (s.mode !== 'pin' && !trkPolyOk(s)) s.poly = null;
+    trkRedraw(); trkPaintBox();
+    if (s.mode !== 'pin') trkRead.textContent = s.poly ? '영역을 다시 끌면 새로 지정돼요' : '대상 위에서 끌어서 네모를 그리세요';
+  });
+
+  function trkClose() {
+    trkBox.classList.remove('show', 'run');
+    trkSes = null; trkDrag = null; trkProg.style.width = '0';
+  }
+  trkCancel.addEventListener('click', function () { if (trkSes && !trkSes.running) trkClose(); });
+  trkBox.addEventListener('mousedown', function (e) { if (e.target === trkBox && trkSes && !trkSes.running) trkClose(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' || !trkBox.classList.contains('show') || !trkSes) return;
+    if (trkSes.running) trkSes.stop = true; else trkClose();
+  });
+
+  /* ----- ① 화면 가져오기 ----- */
+  document.getElementById('btnTrkGrab').addEventListener('click', async function () {
+    if (trkBusy || trkSes) return;
+    if (!TRK) return status('추적 엔진을 불러오지 못했어요 — 패널을 새로고침(↻)해 주세요', 'err');
+    trkBusy = true;
+    try {
+      var t = T_(), c = await call('mk_trackTarget', {});
+      if (!c.ok) return status(errText(c), 'err');
+      if (!c.clips.length) return status(t.mode === 'stab' ? '고정할 영상 클립을 먼저 선택하세요' : '붙일 클립을 먼저 선택하세요', 'warn');
+      var clip = c.clips[0], tpf = c.tpf, r0 = clip.start, r1 = clip.end, note = '';
+      if (t.range === 'inout') {
+        var a = Math.max(r0, c.inPt), b = Math.min(r1, c.outPt);
+        if (c.outPt > c.inPt && b - a >= tpf * 2) { r0 = a; r1 = b; }
+        else note = ' · 인·아웃 구간이 클립과 겹치지 않아 클립 전체를 추적해요';
+      }
+      var f0 = Math.round(r0 / tpf), f1 = Math.round(r1 / tpf) - 1;
+      if (f1 - f0 < 1) return status('클립이 너무 짧아요', 'warn');
+      var n = Math.floor((f1 - f0) / t.step) + 1;
+      if (n > TRK_MAXFRAMES) return status('추적할 구간이 너무 길어요 (' + n + '프레임) → 범위를 "인·아웃 구간"으로 줄이거나 간격을 늘려 주세요', 'warn');
+      var fr = Math.max(f0, Math.min(f1, Math.round(c.ph / tpf)));
+      status('화면을 캡처하는 중…');
+      var from = t.mode === 'stab' ? clip.t + 1 : clip.t;
+      var bg = await call('mk_trackBegin', { from: from });
+      if (!bg.ok) return status(trkErr(bg), 'err');
+      var g = await trkGrab(fr, tpf, '');
+      await call('mk_trackEnd', { del: g.path || '' });
+      if (!g.gray) return status(trkErr(g) + ' → "진단 정보 복사"를 눌러 알려주세요', 'err');
+      var shot = document.createElement('canvas'); shot.width = g.gray.w; shot.height = g.gray.h;
+      shot.getContext('2d').drawImage(trkWork, 0, 0);
+      trkCv.width = g.gray.w; trkCv.height = g.gray.h;
+      var W = g.gray.w, H = g.gray.h;
+      trkSes = { ctx: c, clip: clip, f0: f0, f1: f1, fr: fr, tpf: tpf, mode: t.mode, step: t.step, from: from, gray: g.gray, shot: shot, aw: W, ah: H,
+        poly: t.mode === 'pin' ? [[W * 0.3, H * 0.3], [W * 0.7, H * 0.3], [W * 0.7, H * 0.7], [W * 0.3, H * 0.7]] : null, running: false, stop: false };
+      trkTitle.textContent = TRK_TITLE[t.mode];
+      trkSub.textContent = t.mode === 'pin'
+        ? '점 1~4 를 끌어서 화면의 왼쪽 위 → 오른쪽 위 → 오른쪽 아래 → 왼쪽 아래 모서리에 맞추세요'
+        : '따라갈 대상 위에서 끌어서 네모를 그리세요 · 무늬가 뚜렷한 곳일수록 잘 따라가요';
+      trkRead.textContent = n + '프레임 추적 예정';
+      trkProg.style.width = '0';
+      trkBox.classList.add('show'); trkRedraw(); trkPaintBox();
+      status('대상을 지정하고 "추적 시작"을 누르세요' + note, 'ok');
+    } finally { trkBusy = false; }
+  });
+
+  /* ----- 추적 실행 ----- */
+  trkGo.addEventListener('click', async function () {
+    var s = trkSes; if (!s) return;
+    if (s.running) { s.stop = true; return; }
+    if (!trkPolyOk(s)) return;
+    var model = s.mode === 'pin' ? 'homography' : 'similarity';
+    var probe = new TRK.Tracker(s.gray, s.poly, { model: model });
+    if (probe.initial < probe.minNeeded() * 2) {
+      trkRead.textContent = '이 영역은 무늬가 부족해서 따라가기 어려워요 → 모서리·글자·얼굴처럼 뚜렷한 곳을 포함해 다시 지정하세요';
+      return;
+    }
+    s.running = true; s.stop = false; trkPaintBox();
+    trkSub.textContent = '추적하는 중… 끝나면 선택한 클립에 바로 들어가요';
+    var fwd = [], back = [], f, prevPath = '', lost = 0, failMsg = '';
+    for (f = s.fr + s.step; f <= s.f1; f += s.step) fwd.push(f);
+    for (f = s.fr - s.step; f >= s.f0; f -= s.step) back.push(f);
+    var total = fwd.length + back.length, doneN = 0, got = {}, t0 = Date.now();
+    got[s.fr] = probe.result(true, 1);
+    var bg = await call('mk_trackBegin', { from: s.from });
+    if (!bg.ok) { s.running = false; trkPaintBox(); trkRead.textContent = trkErr(bg); return; }
+    try {
+      var dirs = [fwd, back];
+      for (var d = 0; d < 2 && !s.stop && !failMsg; d++) {
+        var tk = d === 0 ? probe : new TRK.Tracker(s.gray, s.poly, { model: model });
+        for (var i = 0; i < dirs[d].length; i++) {
+          if (s.stop) break;
+          var g = await trkGrab(dirs[d][i], s.tpf, prevPath);
+          prevPath = g.path || '';
+          if (!g.gray) { failMsg = trkErr(g); break; }
+          if (g.gray.w !== s.aw || g.gray.h !== s.ah) { failMsg = TRK_ERR.pixels; break; }
+          var r = tk.step(g.gray);
+          doneN++;
+          if (!r.ok) { lost++; doneN += dirs[d].length - i - 1; break; }
+          got[dirs[d][i]] = r;
+          trkDraw(trkWork, r.corners, tk.cur, false);
+          trkProg.style.width = (100 * doneN / Math.max(1, total)).toFixed(1) + '%';
+          var left = (Date.now() - t0) / doneN * (total - doneN) / 1000;
+          trkRead.textContent = doneN + ' / ' + total + '프레임 · 약 ' + Math.max(1, Math.round(left)) + '초 남음';
+        }
+      }
+    } finally {
+      await call('mk_trackEnd', { del: prevPath });
+    }
+    var frames = Object.keys(got).map(Number).sort(function (a, b) { return a - b; });
+    if (frames.length < 2) {
+      s.running = false; trkPaintBox(); trkRedraw();
+      trkRead.textContent = failMsg || (s.stop ? '중지했어요' : '대상을 따라가지 못했어요 → 영역을 조금 넓혀서 다시 지정해 보세요');
+      return;
+    }
+    var conf = 0, res = frames.map(function (k) { conf += got[k].conf; return got[k]; });
+    trkData = { mode: s.mode, model: model, frames: frames, res: res, refIdx: frames.indexOf(s.fr), tpf: s.tpf, aw: s.aw, ah: s.ah, conf: conf / frames.length };
+    var stopped = s.stop;
+    trkClose(); paintTrk();
+    var tail = lost ? ' · 중간에 대상을 놓쳐서 ' + frames.length + '프레임까지만 들어갔어요' : (stopped ? ' · 중지한 곳까지만 들어갔어요' : '') + (failMsg ? ' · ' + failMsg : '');
+    await trkApply(tail, lost || failMsg ? 'warn' : 'ok');
+  });
+
+  /* ----- 키프레임 계산 → 적용 ----- */
+  function trkScaled(tr, kx, ky) {
+    var k = Math.sqrt(kx * ky);
+    return { n: tr.n, x: tr.x.map(function (v) { return v * kx; }), y: tr.y.map(function (v) { return v * ky; }), scale: tr.scale, rotation: tr.rotation, ok: tr.ok, k: k,
+      corners: tr.corners.map(function (c) { return { x: c.x.map(function (v) { return v * kx; }), y: c.y.map(function (v) { return v * ky; }) }; }) };
+  }
+  /* 클립의 모션(위치·비율·회전·기준점): 원본 좌표 ↔ 화면 좌표 */
+  function trkMotion(clip, W, H) {
+    var m = clip.motion || { pos: [0.5, 0.5], scale: 100, scaleW: 100, uni: true, rot: 0, anchor: [0.5, 0.5] };
+    var lw = (clip.layer && clip.layer.w) || W, lh = (clip.layer && clip.layer.h) || H;
+    var s = Math.max(0.0001, m.scale / 100), th = m.rot * Math.PI / 180, c = Math.cos(th), sn = Math.sin(th);
+    var P = [m.pos[0] * W, m.pos[1] * H], a = [m.anchor[0] * lw, m.anchor[1] * lh];
+    return {
+      m: m, lw: lw, lh: lh, P: P,
+      fwd: function (x, y) { var dx = (x - a[0]) * s, dy = (y - a[1]) * s; return [P[0] + c * dx - sn * dy, P[1] + sn * dx + c * dy]; },
+      inv: function (x, y) { var dx = (x - P[0]) / s, dy = (y - P[1]) / s; return [a[0] + c * dx + sn * dy, a[1] - sn * dx + c * dy]; }
+    };
+  }
+  function r4(v) { return Math.round(v * 100000) / 100000; }
+  function trkPlan(clip, d, tr, t, mode, W, H) {
+    var M = trkMotion(clip, W, H), idx = [], kf = [], i;
+    for (i = 0; i < d.frames.length; i++) {
+      var tk = d.frames[i] * d.tpf;
+      if (tk < clip.start - d.tpf * 0.5 || tk > clip.end - d.tpf * 0.5) continue;
+      idx.push(i); kf.push(r4((tk - clip.start) / d.tpf));
+    }
+    if (idx.length < 2) return null;
+    function keys(fn) { return idx.map(function (ix, n) { return [kf[n], fn(ix)]; }); }
+    var use = { pos: mode === 'stab' ? true : !!t.pos, scale: !!t.scale, rot: !!t.rot }, plan = { t: clip.t, c: clip.c, params: [] }, ks;
+    if (mode === 'pin') {
+      plan.target = 'cpin';
+      var order = [['UL', 0, 0], ['UR', 1, 1], ['LL', 2, 3], ['LR', 3, 2]];   /* 지정 순서: 왼위·오른위·오른아래·왼아래 */
+      order.forEach(function (o) {
+        var cn = tr.corners[o[2]];
+        plan.params.push({ n: o[0], i: o[1], keys: keys(function (ix) { var p = M.inv(cn.x[ix], cn.y[ix]); return [r4(p[0] / M.lw), r4(p[1] / M.lh)]; }) });
+      });
+      return plan;
+    }
+    if (mode === 'stab') {
+      ks = TRK.stabilizeKeys(tr, d.refIdx, use);
+      var z = (t.zoom || 100) / 100, p0 = M.inv(tr.x[d.refIdx], tr.y[d.refIdx]);
+      plan.target = 'tf'; plan.shutter = t.blur ? 180 : 0;
+      plan.params.push({ i: 0, keys: keys(function (ix) { var p = M.inv(ks[ix].anchorX, ks[ix].anchorY); return [r4(p[0] / M.lw), r4(p[1] / M.lh)]; }) });
+      plan.params.push({ i: 1, value: [r4(p0[0] / M.lw), r4(p0[1] / M.lh)] });
+      plan.params.push(use.scale ? { i: 3, keys: keys(function (ix) { return r4(100 * z * ks[ix].scale); }) } : { i: 3, value: r4(100 * z) });
+      plan.params.push(use.rot ? { i: 7, keys: keys(function (ix) { return r4(ks[ix].rotation); }) } : { i: 7, value: 0 });
+      return plan;
+    }
+    /* 따라가기 */
+    if (!use.pos && !use.scale && !use.rot) return null;
+    if (!t.blur) {
+      ks = TRK.followKeys(tr, d.refIdx, { x: M.P[0], y: M.P[1] }, use);
+      plan.target = 'motion';
+      if (use.pos) plan.params.push({ i: 0, keys: keys(function (ix) { return [r4(ks[ix].x / W), r4(ks[ix].y / H)]; }) });
+      if (use.scale) {
+        plan.params.push({ i: 1, keys: keys(function (ix) { return r4(M.m.scale * ks[ix].scale); }) });
+        if (!M.m.uni) plan.params.push({ i: 2, keys: keys(function (ix) { return r4(M.m.scaleW * ks[ix].scale); }) });
+      }
+      if (use.rot) plan.params.push({ i: 4, keys: keys(function (ix) { return r4(M.m.rot + ks[ix].rotation); }) });
+      return plan;
+    }
+    var A = M.fwd(M.lw / 2, M.lh / 2);
+    ks = TRK.followKeys(tr, d.refIdx, { x: A[0], y: A[1] }, use);
+    plan.target = 'tf'; plan.shutter = 180;
+    plan.params.push({ i: 0, value: [0.5, 0.5] });
+    plan.params.push(use.pos ? { i: 1, keys: keys(function (ix) { var p = M.inv(ks[ix].x, ks[ix].y); return [r4(p[0] / M.lw), r4(p[1] / M.lh)]; }) } : { i: 1, value: [0.5, 0.5] });
+    plan.params.push(use.scale ? { i: 3, keys: keys(function (ix) { return r4(100 * ks[ix].scale); }) } : { i: 3, value: 100 });
+    plan.params.push(use.rot ? { i: 7, keys: keys(function (ix) { return r4(ks[ix].rotation); }) } : { i: 7, value: 0 });
+    return plan;
+  }
+  async function trkApply(tail, cls) {
+    var d = trkData, t = T_();
+    if (!d) return status('먼저 "① 화면 가져와서 추적하기"로 추적해 주세요', 'warn');
+    var mode = t.mode;
+    if ((mode === 'pin') !== (d.mode === 'pin')) {
+      return status('지금 추적 결과는 "' + TRK_MODE[d.mode] + '"용이에요 → "' + TRK_MODE[mode] + '" 방식으로 다시 추적해 주세요', 'warn');
+    }
+    var c = await call('mk_trackTarget', { at: d.frames[d.refIdx] * d.tpf });
+    if (!c.ok) return status(errText(c), 'err');
+    if (!c.clips.length) return status('적용할 클립을 먼저 선택하세요', 'warn');
+    var tr = trkScaled(TRK.buildTracks(d.res, t.smooth), c.w / d.aw, c.h / d.ah), plans = [], skipped = 0;
+    c.clips.forEach(function (clip) { var p = trkPlan(clip, d, tr, t, mode, c.w, c.h); if (p) plans.push(p); else skipped++; });
+    if (!plans.length) {
+      return status(mode === 'follow' && !t.pos && !t.scale && !t.rot ? '속성(위치·비율·회전)을 하나 이상 켜 주세요' : '선택한 클립이 추적한 구간과 겹치지 않아요', 'warn');
+    }
+    status('키프레임을 넣는 중…');
+    var r = await call('mk_trackApply', plans);
+    if (!r.ok) return status(trkErr(r), 'err');
+    if (!r.done) return status(trkErr({ err: r.failed[0] || 'noparam' }), 'err');
+    var where = plans[0].target === 'motion' ? '모션' : plans[0].target === 'tf' ? '변형 효과' : '모퉁이 고정';
+    status('✓ ' + TRK_MODE[mode] + ' 적용 · 클립 ' + r.done + '개 · ' + where + '에 키프레임 ' + plans[0].params.reduce(function (a, p) { return Math.max(a, p.keys ? p.keys.length : 0); }, 0) + '개'
+      + (r.failed.length ? ' · 실패 ' + r.failed.length + '개 (' + trkErr({ err: r.failed[0] }) + ')' : '') + (skipped ? ' · 구간 밖 ' + skipped + '개 제외' : '') + (tail || ''),
+      r.failed.length ? 'warn' : (cls || 'ok'));
+  }
+  document.getElementById('btnTrkApply').addEventListener('click', async function () {
+    if (trkBusy) return;
+    trkBusy = true;
+    try { await trkApply('', 'ok'); } finally { trkBusy = false; }
+  });
+  document.getElementById('btnTrkClear').addEventListener('click', async function () {
+    var r = await call('mk_trackClear');
+    if (!r.ok) return status(errText(r), 'err');
+    if (!r.clips) return status('클립을 먼저 선택하세요', 'warn');
+    status('✓ 추적 키프레임 지움 · 모션 속성 ' + r.fixed + '개 · 모퉁이 고정 ' + r.removed + '개'
+      + (r.tf ? ' · 변형 효과에 넣은 추적은 위의 "효과 지우기"로 지워요' : ''), 'ok');
   });
 
   /* ---------- 시작 ---------- */
   function refreshAll() {
     segs.forEach(function (p) { p(); });
-    paintBlur(); paintTyping(); paintKinds(); paintDur(); paintPivot(); paintAutoArea(); paintColors(); paintTip();
+    paintBlur(); paintTyping(); paintKinds(); paintKindsRow(); paintDur(); paintPivot(); paintAutoArea(); paintColors(); paintTip();
     renderCats(); renderGrid(); renderCurveChips(); drawCurve(); renderFxFavs(); renderFxList();
     wasMini = null; layout();
   }
@@ -1454,10 +2204,13 @@
   refreshAll();
   setFold(lsGet(FOLD_KEY) === '1'); paintSum();
   if (isEn()) applyLang(); else if (btnLang) { btnLang.textContent = 'EN'; btnLang.title = 'View in English'; }
-  /* v1.6.4: 시작점 기본값을 "클립 시작"으로 — 예전 설정도 한 번 맞춘다 */
+  /* v1.6.5: 시작점 기본값을 "클립 시작"으로 — 예전 설정도 한 번 맞춘다 */
   sync(true, function (remote) {
-    var mig = Math.max(S.mig || 0, (remote && remote.mig) || 0);
-    if (mig < 164) { opts.anchor = 'start'; S.mig = 164; save(); refreshAll(); }
+    var mig = Math.max(S.mig || 0, (remote && remote.mig) || 0), ch = false;
+    if (mig < 164) { opts.anchor = 'start'; ch = true; }
+    /* v1.6.5: 타이핑 기본 속도를 글자당 4프레임으로 (예전 1~2프레임은 마스크처럼 너무 빨랐음) */
+    if (mig < 165) { if (!(opts.typing.fpc >= 3)) opts.typing.fpc = 4; ch = true; }
+    if (ch) { S.mig = 165; save(); refreshAll(); }
   });
   /* ---------- 연결 확인 (재시도 → 프리미어 쪽 스크립트 다시 불러오기) ---------- */
   var connErr = '';
