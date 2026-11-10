@@ -23,6 +23,7 @@ var MK_SPECS = {
     gblur: { /* 가우시안 흐림 */
         names: ["Gaussian Blur", "Gaussian Blur (Legacy)", "\uAC00\uC6B0\uC2DC\uC548 \uD750\uB9BC", "\uAC00\uC6B0\uC2DC\uC548 \uD750\uB9BC(\uB808\uAC70\uC2DC)"],
         scan: [/^gaussian blur/i, /\uAC00\uC6B0\uC2DC\uC548/],
+        legacyFirst: true,   /* 프리미어 26: 새 "가우시안 흐림"은 속성이 다른 효과 → 예전 것(레거시)을 먼저 */
         ok: function (m) { return /gaussian/i.test(m); }
     },
     turb: { /* 난류 변위 */
@@ -70,6 +71,7 @@ var MK_SPECS = {
     dblur: { /* 방향 흐림 */
         names: ["Directional Blur", "\uBC29\uD5A5 \uD750\uB9BC", "\uBC29\uD5A5\uC131 \uD750\uB9BC"],
         scan: [/^directional blur/i, /\uBC29\uD5A5.*\uD750\uB9BC/],
+        legacyFirst: true,
         ok: function (m) { return /motion blur|directional/i.test(m); }
     },
     ramp: { /* 경사(그레이디언트) — 곡선 차오르기의 단색 판 */
@@ -91,9 +93,9 @@ var MK_SPECS = {
 /* 추가 효과 속성의 표시 이름 (영문 / 한글). 이름으로 먼저 찾고, 없으면 번호로 */
 var MK_PNAMES = {
     crop:  { Feather: ["Edge Feather", "\uAC00\uC7A5\uC790\uB9AC \uD398\uB354", "\uAC00\uC7A5\uC790\uB9AC \uD750\uB9BC", "\uAC00\uC7A5\uC790\uB9AC \uBD80\uB4DC\uB7FD\uAC8C"], Left: ["Left", "\uC67C\uCABD"], Top: ["Top", "\uC704\uCABD", "\uC704"], Right: ["Right", "\uC624\uB978\uCABD"], Bottom: ["Bottom", "\uC544\uB798\uCABD", "\uC544\uB798"] },
-    gblur: { Blurriness: ["Blurriness", "\uD750\uB9BC \uC815\uB3C4", "\uD750\uB9BC"] },
+    gblur: { Blurriness: ["Blurriness", "\uD750\uB9BC \uC815\uB3C4", "\uD750\uB9BC", "\uD750\uB9BC\uB3C4", "Amount", "\uC591", "Blur Amount", "\uD750\uB9BC \uC591"] },
     turb:  { Amount: ["Amount", "\uC591"], Size: ["Size", "\uD06C\uAE30"], Complexity: ["Complexity", "\uBCF5\uC7A1\uC131", "\uBCF5\uC7A1\uB3C4"], Evolution: ["Evolution", "\uC9C4\uD654", "\uC804\uAC1C"] },
-    dblur: { Direction: ["Direction", "\uBC29\uD5A5"], Length: ["Blur Length", "\uD750\uB9BC \uAE38\uC774"] },
+    dblur: { Direction: ["Direction", "\uBC29\uD5A5", "Angle", "\uAC01\uB3C4"], Length: ["Blur Length", "\uD750\uB9BC \uAE38\uC774", "Length", "\uAE38\uC774", "Amount", "\uC591"] },
     wwarp: { Type: [/wave type/i, /(\uD30C\uD615|\uBB3C\uACB0|\uD30C\uB3C4) ?\uC720\uD615/], Height: [/wave height/i, /(\uD30C\uD615|\uBB3C\uACB0|\uD30C\uB3C4) ?\uB192\uC774/],
              Width: [/wave width/i, /(\uD30C\uD615|\uBB3C\uACB0|\uD30C\uB3C4) ?(\uD3ED|\uB108\uBE44)/], Direction: [/^direction$/i, /^\uBC29\uD5A5$/],
              Speed: [/wave speed/i, /(\uD30C\uD615|\uBB3C\uACB0|\uD30C\uB3C4) ?\uC18D\uB3C4/], Phase: [/^phase$/i, /^\uC704\uC0C1$/] },
@@ -254,11 +256,16 @@ function mkCandidates(spec) {
     } catch (e) {}
     /* 레거시가 아닌 쪽을 먼저 */
     near.sort(function (a, b) { return (/legacy|\uB808\uAC70\uC2DC/i.test(a) ? 1 : 0) - (/legacy|\uB808\uAC70\uC2DC/i.test(b) ? 1 : 0); });
+    if (spec.legacyFirst) {   /* 흐림 효과: 속성이 익숙한 레거시 판을 먼저 */
+        for (i = 0; i < exact.length; i++) if (mkIsLegacy(exact[i]) && !mkIn(names, exact[i])) names.push(exact[i]);
+        for (i = 0; i < near.length; i++) if (mkIsLegacy(near[i]) && !mkIn(names, near[i])) names.push(near[i]);
+    }
     for (i = 0; i < exact.length; i++) if (!mkIn(names, exact[i])) names.push(exact[i]);
     for (i = 0; i < near.length; i++) if (!mkIn(names, near[i])) names.push(near[i]);
     for (i = 0; i < spec.names.length; i++) if (!mkIn(names, spec.names[i])) names.push(spec.names[i]);
     return names;
 }
+function mkIsLegacy(n) { return /legacy|\uB808\uAC70\uC2DC/i.test(String(n)); }
 function mkMatchNames(clip) {
     var r = [];
     for (var i = 0; i < clip.components.numItems; i++) r.push(String(clip.components[i].matchName));
@@ -342,12 +349,20 @@ function mkSame(v) { return v; }
 function mkParamFor(props, fx, name, idx) {
     var names = (MK_PNAMES[fx] && name) ? MK_PNAMES[fx][name] : null, i;
     if (names) {
+        /* 새 프리미어는 속성 이름도 "흐림 정도 (Blurriness)" 처럼 한글(영문) → 둘로 쪼개서 비교. 앞쪽 이름이 우선 */
+        var parts = [];
         for (i = 0; i < props.numItems; i++) {
             var dn = "";
             try { dn = String(props[i].displayName); } catch (e) { dn = ""; }
-            for (var j = 0; j < names.length; j++) {
-                var nmj = names[j];
-                if (typeof nmj === "string" ? nmj === dn : nmj.test(dn)) return props[i];
+            parts.push(mkNameParts(dn));
+        }
+        for (var j = 0; j < names.length; j++) {
+            var nmj = names[j];
+            for (i = 0; i < parts.length; i++) {
+                for (var q = 0; q < parts[i].length; q++) {
+                    var pq = parts[i][q];
+                    if (typeof nmj === "string" ? nmj.toLowerCase() === pq.toLowerCase() : nmj.test(pq)) return props[i];
+                }
             }
         }
     }

@@ -5,7 +5,7 @@
   var cep = window.__adobe_cep__;
   var FORCE_MINI = !!window.MK_FORCE_MINI;          // mini.html (별도 미니 패널)
   var MAIN_ID = 'com.moment.motionkit.main';
-  var RUN = window.MK_RUNNING || { v: '1.7.0', src: 'bundled' };
+  var RUN = window.MK_RUNNING || { v: '1.7.1', src: 'bundled' };
   var VERSION = 'v' + RUN.v;
   var SRCNAME = { online: '방금 자동 업데이트됨', cache: '저장된 업데이트', bundled: '설치본' };
 
@@ -171,6 +171,8 @@
     "선택한 클립 길이에 맞춰 위쪽 빈 트랙에 · 선택이 없으면 재생헤드부터 5초": "Matches the selected clips on a free track above · no selection: 5s from the playhead",
     '선택 클립 길이에 맞춰 · 없으면 재생헤드부터 5초': 'Fits selected clips · else 5s from playhead',
     '선택한 클립 길이에 맞춰, 다른 클립과 겹치지 않게 위쪽 빈 트랙에 넣어요 (빈 트랙이 없으면 트랙을 추가) · 선택이 없으면 재생헤드부터 5초': 'Inserted on a free track above, matching the selected clips without overlapping others (adds a track if needed) · no selection: 5s from the playhead',
+    '조정 레이어': 'Adjustment layer', '검은 화면': 'Black screen', '＋ 조정': '＋ Adj.', '＋ 검정': '＋ Black',
+    '아래 목록이나 위 빠르게 넣기의 ☆ 를 눌러 추가하세요': 'Press ☆ in the list below or on the quick-insert buttons above to add',
     "＋ 조정 레이어": "＋ Adjustment layer",
     "＋ 검은 화면": "＋ Black screen",
     "속성과 구간 고르기": "Pick properties and segments",
@@ -275,6 +277,8 @@
     "조정 레이어을(를) 넣지 못했어요 (": "Could not insert adjustment layer (",
     "✓ 검은 화면 ": "✓ Black screen ",
     "✓ 조정 레이어 ": "✓ Adjustment layer ",
+    '\n☆: 즐겨찾기 (미니 패널에도 나와요)': '\n☆: favorite (also shown in the Mini panel)',
+    '\n우클릭: 즐겨찾기 빼기': '\nRight-click: remove from favorites',
     '고정': 'Stabilize'
   };
   var KO_EN_RULES = [
@@ -1309,6 +1313,13 @@
       miniGrid.appendChild(t);
     });
     S.fxFavs.forEach(function (f) {
+      if (f.q) {
+        var qt = document.createElement('button'); qt.className = 'tile fxTile quick'; qt.title = quickName(f.q) + ' — ' + QUICK_TIP;
+        qt.innerHTML = '<b>' + (f.q === 'black' ? '■' : '◧') + '</b><span></span>'; qt.querySelector('span').textContent = quickName(f.q);
+        qt.addEventListener('click', function () { insertLayer(f.q, qt); });
+        dragTile(qt, 'f:0:' + f.n);
+        miniGrid.appendChild(qt); return;
+      }
       var t = document.createElement('button'); t.className = 'tile fxTile' + (f.a ? ' audio' : ''); t.title = (f.a ? '오디오 효과: ' : '효과: ') + f.n;
       t.innerHTML = '<b>' + (f.a ? '♪ FX' : 'FX') + '</b><span class="noTr"></span>'; t.querySelector('span').textContent = f.n;
       t.addEventListener('click', function () { addFx(f.n, !!f.a, t); });
@@ -1433,6 +1444,31 @@
       return fxData;
     } finally { fxLoading = false; }
   }
+  /* 빠르게 넣기(조정 레이어 · 검은 화면): 효과 즐겨찾기와 같은 목록에 { n: '@adjust', q: 'adjust' } 로 저장 */
+  var QUICK = [{ q: 'adjust', name: '조정 레이어', sh: '조정' }, { q: 'black', name: '검은 화면', sh: '검정' }];
+  function quickName(q) { for (var i = 0; i < QUICK.length; i++) if (QUICK[i].q === q) return QUICK[i].name; return q; }
+  var QUICK_TIP = '선택한 클립 길이에 맞춰, 다른 클립과 겹치지 않게 위쪽 빈 트랙에 넣어요 (빈 트랙이 없으면 트랙을 추가) · 선택이 없으면 재생헤드부터 5초';
+  function isQuickFav(q) { return S.fxFavs.some(function (f) { return f.q === q; }); }
+  function toggleQuickFav(q) {
+    if (isQuickFav(q)) S.fxFavs = S.fxFavs.filter(function (f) { return f.q !== q; });
+    else S.fxFavs.push({ n: '@' + q, q: q });
+    save(); renderFxFavs(); renderMini();
+  }
+  function renderQuick() {
+    var el = document.getElementById('quickMini'); if (!el) return;
+    el.innerHTML = '';
+    QUICK.forEach(function (it) {
+      var b = document.createElement('button'); b.className = 'qChip';
+      b.title = QUICK_TIP + '\n☆: 즐겨찾기 (미니 패널에도 나와요)';
+      var st = document.createElement('i'); st.className = 'qStar' + (isQuickFav(it.q) ? ' on' : ''); st.textContent = isQuickFav(it.q) ? '★' : '☆';
+      var nm = document.createElement('span'); nm.innerHTML = '<em class="lg"></em><em class="sh"></em>';
+      nm.firstChild.textContent = '＋ ' + it.name; nm.lastChild.textContent = '＋ ' + it.sh;
+      b.appendChild(nm); b.appendChild(st);
+      b.addEventListener('click', function (e) { if (e.target === st) { toggleQuickFav(it.q); return; } insertLayer(it.q, b); });
+      b.addEventListener('contextmenu', function (e) { e.preventDefault(); toggleQuickFav(it.q); });
+      el.appendChild(b);
+    });
+  }
   function isFxFav(n, a) { return S.fxFavs.some(function (f) { return f.n === n && !!f.a === !!a; }); }
   function toggleFxFav(n, a) {
     if (isFxFav(n, a)) S.fxFavs = S.fxFavs.filter(function (f) { return !(f.n === n && !!f.a === !!a); });
@@ -1440,9 +1476,17 @@
     save(); renderFxFavs(); renderFxList(); renderMini();
   }
   function renderFxFavs() {
+    renderQuick();
     fxFavsEl.innerHTML = '';
-    if (!S.fxFavs.length) { fxFavsEl.innerHTML = '<span class="empty">아래 목록에서 ☆ 를 눌러 추가하세요</span>'; return; }
+    if (!S.fxFavs.length) { fxFavsEl.innerHTML = '<span class="empty">아래 목록이나 위 빠르게 넣기의 ☆ 를 눌러 추가하세요</span>'; return; }
     S.fxFavs.forEach(function (f) {
+      if (f.q) {
+        var qb = document.createElement('button'); qb.className = 'fxChip quick'; qb.textContent = '＋ ' + quickName(f.q);
+        qb.title = QUICK_TIP + '\n우클릭: 즐겨찾기 빼기';
+        qb.addEventListener('click', function () { insertLayer(f.q, qb); });
+        qb.addEventListener('contextmenu', function (e) { e.preventDefault(); toggleQuickFav(f.q); });
+        fxFavsEl.appendChild(qb); return;
+      }
       var b = document.createElement('button'); b.className = 'fxChip noTr' + (f.a ? ' audio' : ''); b.textContent = f.n;
       b.title = (f.a ? '오디오 효과 · ' : '') + '클릭: 추가 / 우클릭: 즐겨찾기 빼기';
       b.addEventListener('click', function () { addFx(f.n, !!f.a, b); });
@@ -1751,7 +1795,8 @@
     return path;
   }
   async function insertLayer(kind, btn) {
-    btn.disabled = true;
+    if (btn.classList.contains('busy')) return;
+    btn.classList.add('busy');
     try {
       var data = { kind: kind, dur: 5 };
       if (kind === 'black') { data.png = await blackPng(); if (!data.png) return status('검은 화면 그림을 만들지 못했어요', 'err'); }
@@ -1765,10 +1810,8 @@
       var name = kind === 'black' ? '검은 화면' : '조정 레이어';
       if (!r.done) return status(name + '을(를) 넣지 못했어요 (' + (r.fails || []).join(', ') + ')', 'warn');
       status('✓ ' + name + ' ' + r.done + '개 · V' + r.tracks.join(', V') + (isEn() ? ' track' : ' 트랙'), 'ok');
-    } finally { btn.disabled = false; }
+    } finally { btn.classList.remove('busy'); }
   }
-  document.getElementById('btnAdj').addEventListener('click', function () { insertLayer('adjust', this); });
-  document.getElementById('btnBlack').addEventListener('click', function () { insertLayer('black', this); });
 
   /* ---------- 트래킹 탭 ----------
    * 화면을 프레임마다 캡처해서 패널 안에서 직접 추적(MKTrack, engine.js 맨 아래)하고,

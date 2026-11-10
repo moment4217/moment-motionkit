@@ -434,3 +434,22 @@ html[lang=en] .opts.compact .row > label { white-space: nowrap; overflow: hidden
 .curveItem span { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: center; font-size: 10px; }
 .quickCard .head > span { flex: none; white-space: nowrap; }
 .quickCard .head small { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-left: 8px; }
+
+/* ---------- v1.7.1: 빠르게 넣기를 즐겨찾는 효과 줄에 작게 ---------- */
+.quickCard, .quickRow { display: none; }
+.favHead { align-items: center; gap: 6px; margin-bottom: 4px; }
+.favHead > span { flex: none; white-space: nowrap; }
+.quickMini { display: flex; gap: 3px; min-width: 0; justify-content: flex-end; flex-wrap: nowrap; }
+.qChip { display: inline-flex; align-items: center; gap: 2px; padding: 1px 4px 1px 6px; border-radius: 9px; background: #1a1a1a; border: 1px solid #333;
+  color: var(--dim); font-size: 10px; line-height: 15px; white-space: nowrap; min-width: 0; }
+.qChip span { overflow: hidden; text-overflow: ellipsis; }
+.qChip:hover { color: var(--text); border-color: var(--accent2); }
+.qChip.busy { opacity: .5; pointer-events: none; }
+.qStar { font-style: normal; font-size: 10px; color: #666; padding: 0 1px; }
+.qStar:hover { color: #ffcf4a; }
+.qStar.on { color: #ffcf4a; }
+.fxChip.quick { border-style: dashed; }
+.fxChip.quick.busy { opacity: .5; pointer-events: none; }
+.tile.fxTile.quick b { font-size: 12px; }
+.qChip em { font-style: normal; } .qChip em.sh { display: none; }
+@media (max-width: 340px) { .qChip em.lg { display: none; } .qChip em.sh { display: inline; } }
