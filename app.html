@@ -39,7 +39,7 @@
           <div class="row"><label>등장</label>
             <div class="seg" id="optOutside"><button data-v="0">기본</button><button data-v="1" title="프레임 밖에서 팍 꽂기">밖에서 꽂기</button></div></div>
           <div class="row pivotRow"><label>기준점</label><div class="pivGrid" id="pivGrid"></div>
-            <button class="chipA" id="btnPick" title="지금 화면을 캡처해서 기준점을 직접 찍어요">화면에서 지정</button><span class="hint" id="pivLabel">가운데</span></div>
+            <button class="chipA" id="btnPick" title="지금 화면을 캡처해서 기준점을 직접 찍어요">화면에서 지정</button><button class="chipA" id="btnFace" title="지금 화면에서 얼굴을 찾아 기준점으로 (줌이 얼굴 중심으로 커져요)">얼굴</button><span class="hint" id="pivLabel">가운데</span></div>
           <div class="row"><label>블러</label><button class="toggle" id="optBlur" aria-label="모션블러"><i></i></button><span class="hint" title="빠른 움직임에 자동으로 모션블러">자동 모션블러</span></div>
           <div class="row span" id="zoomRow"><label>천천히 줌</label><div class="seg" id="optZoomRate"></div></div>
         </div>
@@ -209,6 +209,14 @@
     <p class="note">무늬가 뚜렷한 곳(얼굴, 로고, 글자, 모서리)을 지정할수록 잘 따라가요. 추적하는 동안 재생헤드가 움직이고 위쪽 트랙이 잠깐 꺼졌다가 끝나면 원래대로 돌아와요.</p>
   </section>
 </main>
+<!-- 선택 클립에 들어간 모션 -->
+<div class="pickBox segBox" id="appliedBox">
+  <div class="pickPanel">
+    <div class="pickHead"><b>선택 클립에 들어간 모션</b><small>칩을 누르면 그것만 지워요 · 변형은 시작/끝 구간별로 따로 지울 수 있어요</small></div>
+    <div class="segList" id="appliedList"></div>
+    <div class="pickBtns"><button class="ghost" id="appAll">모두 지우기</button><span class="pickRead"></span><button class="primary" id="appClose">닫기</button></div>
+  </div>
+</div>
 <!-- 커브: 속성과 구간 고르기 -->
 <div class="pickBox segBox" id="segBox">
   <div class="pickPanel">
