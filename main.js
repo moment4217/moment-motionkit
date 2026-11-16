@@ -5,7 +5,7 @@
   var cep = window.__adobe_cep__;
   var FORCE_MINI = !!window.MK_FORCE_MINI;          // mini.html (별도 미니 패널)
   var MAIN_ID = 'com.moment.motionkit.main';
-  var RUN = window.MK_RUNNING || { v: '1.7.3', src: 'bundled' };
+  var RUN = window.MK_RUNNING || { v: '1.7.4', src: 'bundled' };
   var VERSION = 'v' + RUN.v;
   var SRCNAME = { online: '방금 자동 업데이트됨', cache: '저장된 업데이트', bundled: '설치본' };
 
@@ -173,6 +173,7 @@
     '선택한 클립 길이에 맞춰, 다른 클립과 겹치지 않게 위쪽 빈 트랙에 넣어요 (빈 트랙이 없으면 트랙을 추가) · 선택이 없으면 재생헤드부터 5초': 'Inserted on a free track above, matching the selected clips without overlapping others (adds a track if needed) · no selection: 5s from the playhead',
     '조정 레이어': 'Adjustment layer', '검은 화면': 'Black screen', '＋ 조정': '＋ Adj.', '＋ 검정': '＋ Black',
     '아래 목록이나 위 빠르게 넣기의 ☆ 를 눌러 추가하세요': 'Press ☆ in the list below or on the quick-insert buttons above to add',
+    '마지막 모션 킷 작업 되돌리기 (Ctrl+Z)': 'Undo the last Motion Kit action (Ctrl+Z)',
     '편집 도구': 'Edit tools', '얼굴': 'Face',
     '지금 화면에서 얼굴을 찾아 기준점으로 (줌이 얼굴 중심으로 커져요)': 'Find the face in the current frame and use it as the pivot (zooms grow from the face)',
     '선택 클립에 들어간 모션': 'Motions on the selected clips',
@@ -383,7 +384,37 @@
     });
   }
   /* 한글이 섞여도 안전하도록 \uXXXX 로 바꿔서 넘긴다 */
-  function call(fn, data) {
+  /* v1.7.4: 클립을 바꾸는 호출 직전에 상태를 적어 둠 → "마지막 적용 되돌리기" (프리미어 Ctrl+Z 는 잘게 쪼개져서 한 번에 안 되돌아감) */
+  var UNDO_FN = { mk_apply: '모션', mk_writeKeys: '곡선', mk_clear: '효과 지우기', mk_setPivot: '기준점', mk_motionBlur: '모션블러', mk_insertLayer: '빠르게 넣기',
+    mk_layout: '배치', mk_layoutInfo: '배치', mk_addEffect: '효과 추가', mk_removeApplied: '모션 지우기', mk_trackApply: '트래킹', mk_trackClear: '트래킹 지우기' };
+  var UNDO_EN = { '모션': 'Motion', '곡선': 'Curve', '효과 지우기': 'Clear effects', '기준점': 'Pivot', '모션블러': 'Motion blur', '빠르게 넣기': 'Quick insert',
+    '배치': 'Layout', '효과 추가': 'Add effect', '모션 지우기': 'Remove motion', '트래킹': 'Tracking', '트래킹 지우기': 'Clear tracking' };
+  var undoLabel = '', undoKeep = false, undoBegun = false;
+  function clipsOf(d) {
+    var out = [];
+    function scan(a) { if (!a || typeof a.length !== 'number') return; for (var i = 0; i < a.length; i++) if (a[i] && typeof a[i].t === 'number' && typeof a[i].c === 'number') out.push({ t: a[i].t, c: a[i].c }); }
+    if (d) { scan(d); scan(d.items); scan(d.plans); if (typeof d.t === 'number' && typeof d.c === 'number') out.push({ t: d.t, c: d.c }); }
+    return out.length ? out : null;
+  }
+  /* 여러 번 호출하는 작업(배치·편집 도구)은 한 번의 되돌리기로 묶음 */
+  async function undoGroup(label, fn) {
+    undoLabel = label; undoKeep = true; undoBegun = false;
+    try { return await fn(); } finally { undoKeep = false; undoBegun = false; undoLabel = ''; }
+  }
+  async function call(fn, data) {
+    var began = false;
+    if (UNDO_FN[fn] && !(fn === 'mk_layoutInfo' && !(data && data.prep)) && !(fn === 'mk_addEffect' && data && data.audio) && !(undoKeep && undoBegun)) {
+      var lb = undoLabel || UNDO_FN[fn];
+      var ub = await rawCall('mk_undoBegin', { label: isEn() ? (UNDO_EN[lb] || lb) : lb, clips: clipsOf(data) });
+      began = !!(ub && ub.ok);
+      if (undoKeep) undoBegun = true;
+    }
+    var r = await rawCall(fn, data);
+    if (began && !undoKeep && (!r || !r.ok)) await rawCall('mk_undoDrop');   /* 실패한 작업은 기록에서 뺌 */
+    if (fn === 'mk_insertLayer' && r && r.ok && r.created && r.created.length) await rawCall('mk_undoNote', { created: r.created });
+    return r;
+  }
+  function rawCall(fn, data) {
     if (data === undefined) return host(fn + '()');
     var arg = JSON.stringify(JSON.stringify(data)).replace(/[\u0080-￿]/g, function (c) {
       return '\\u' + ('000' + c.charCodeAt(0).toString(16)).slice(-4);
@@ -1446,6 +1477,7 @@
     list: gSvg(gFr(3, 4, 18, 16) + gLn('M6.5 9h7M6.5 13h7M6.5 17h4', GW, 1.4) + gLn('M16.5 8.5l2 2M18.5 8.5l-2 2', GY, 1.4)),
     clear: gSvg('<path d="M8 6h12v12H8l-5-6z" stroke="' + GW + '" stroke-width="1.6"/>' + gLn('M11.5 9.5l5 5M16.5 9.5l-5 5', GY, 1.6)),
     more: gSvg(gLn('M14 4h6v6M10 20H4v-6M20 4l-6 6M4 20l6-6', GW, 1.6)),
+    undo: gSvg('<path d="M9 7H15a5 5 0 0 1 0 10H8" stroke="' + GW + '" stroke-width="1.7"/>' + gLn('M9 3.5L5.5 7 9 10.5', GY, 1.8)),
     star: gSvg('<path d="M12 3.5l2.5 5.2 5.6.7-4.1 3.9 1 5.6L12 16.2l-5 2.7 1-5.6-4.1-3.9 5.6-.7z" stroke="' + GD + '" stroke-width="1.4" stroke-dasharray="2 1.6"/>')
   };
   /* 방향이 있는 슬라이드·자르기: 점선(시작) → 노란 화살표 */
@@ -1582,6 +1614,8 @@
     miniSep();
     miniTile(GLYPH.face, LL('얼굴 기준점', 'Face pivot'), LL('지금 화면에서 얼굴을 찾아 기준점으로', 'Find the face in the current frame and use it as the pivot'), function (t) { facePivot(t); });
     miniTile(GLYPH.list, LL('들어간 모션', 'Applied motions'), LL('선택 클립에 들어간 모션 보기 · 하나씩 지우기', 'See and remove the motions on the selected clips'), function () { openAppliedMini(); });
+    var ut = miniTile(GLYPH.undo, LL('되돌리기', 'Undo'), LL('마지막 모션 킷 작업 되돌리기 (Ctrl+Z)', 'Undo the last Motion Kit action (Ctrl+Z)'), function (t) { doUndo(t); });
+    ut.addEventListener('mouseenter', function () { rawCall('mk_undoPeek').then(function (r) { if (r.ok && r.depth) { miniStatusEl.textContent = LL('되돌리기: ', 'Undo: ') + r.label; } }); });
     miniTile(GLYPH.clear, LL('효과 지우기', 'Clear effects'), LL('선택 클립의 모션 효과 지우기', 'Remove Motion Kit effects from the selected clips'), function () { doClear(); }, null, null, 'clear');
     miniTile(GLYPH.more, FORCE_MINI ? LL('전체 패널 열기', 'Open the full panel') : LL('크게 펼치기', 'Expand'), '', function () { expandClick(); });
   }
@@ -1648,7 +1682,9 @@
         call('mk_cleanTmp');
       }
       var plan = MK.buildPlan(preset, opts, ctx);
+      undoLabel = nameOf(preset);
       var r = await call('mk_apply', plan);
+      undoLabel = '';
       if (!r.ok) return status(errText(r), 'err');
       var extra = opts.dur > 0 ? ' · ' + fmtSec(opts.dur) : '';
       if (preset.typing && !(r.missing && r.missing.length)) {
@@ -1680,6 +1716,39 @@
   }
 
   document.getElementById('btnClear').addEventListener('click', doClear);
+
+  /* ---------- v1.7.4: 마지막 적용 되돌리기 ---------- */
+  var undoBusy = false;
+  async function doUndo(el) {
+    if (undoBusy) return;
+    undoBusy = true; if (el) el.classList.add('busy');
+    try {
+      status(LL('되돌리는 중…', 'Undoing…'));
+      var r = await rawCall('mk_undo');
+      if (!r.ok) return status(r.err === 'empty' ? LL('되돌릴 작업이 없어요', 'Nothing to undo') : errText(r), r.err === 'empty' ? 'warn' : 'err');
+      var msg = '↶ ' + LL('되돌림: ', 'Undone: ') + (r.label || '') + LL(' · 클립 ' + r.clips + '개', ' · clips ' + r.clips);
+      if (r.delClips) msg += LL(' · 넣은 클립 ' + r.delClips + '개 지움', ' · removed ' + r.delClips + ' inserted clip(s)');
+      if (r.gone) msg += LL(' · 클립 ' + r.gone + '개는 찾지 못함', ' · ' + r.gone + ' clip(s) not found');
+      status(msg + (r.depth ? LL(' · 남은 되돌리기 ' + r.depth + '번', ' · ' + r.depth + ' more') : ''), r.gone ? 'warn' : 'ok');
+      if (appBox && appBox.classList.contains('show')) openApplied();
+    } finally { undoBusy = false; if (el) el.classList.remove('busy'); }
+  }
+  async function undoTitle(el) {
+    var r = await rawCall('mk_undoPeek');
+    el.title = r.ok && r.depth ? LL('되돌리기: ' + r.label + ' (클립 ' + r.clips + '개) · Ctrl+Z', 'Undo: ' + r.label + ' (' + r.clips + ' clips) · Ctrl+Z') : LL('되돌릴 작업이 없어요', 'Nothing to undo');
+  }
+  var btnUndo = document.getElementById('btnUndo');
+  if (btnUndo) {
+    btnUndo.addEventListener('click', function () { doUndo(btnUndo); });
+    btnUndo.addEventListener('mouseenter', function () { undoTitle(btnUndo); });
+  }
+  /* 패널을 누른 상태에서 Ctrl+Z (Mac: Cmd+Z) = 모션 킷 되돌리기 */
+  document.addEventListener('keydown', function (e) {
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || String(e.key).toLowerCase() !== 'z') return;
+    var tg = e.target && e.target.tagName;
+    if (tg === 'INPUT' || tg === 'TEXTAREA') return;
+    e.preventDefault(); doUndo(btnUndo);
+  });
 
   /* =================== v1.7.2: 편집 도구 (번갈아 줌 · 컷 전환 · 세로 맞춤 · 화면 분할) =================== */
   var TOOLS = [
@@ -1762,10 +1831,12 @@
       var ctx = await getCtx(true);
       if (!ctx.ok) return status(errText(ctx), 'err');
       if (!ctx.clips.length) return status('타임라인에서 클립을 먼저 선택하세요', 'warn');
-      if (t.id === 'cycle') await runCycle(ctx, v);
-      else if (t.id === 'trans') await runTrans(ctx, v);
-      else if (t.id === 'vert') await runLayout(ctx, 'vert', v.face);
-      else await runLayout(ctx, v.mode, true);
+      await undoGroup(toolName(t) + ' · ' + (isEn() ? v.en : v.v), async function () {
+        if (t.id === 'cycle') await runCycle(ctx, v);
+        else if (t.id === 'trans') await runTrans(ctx, v);
+        else if (t.id === 'vert') await runLayout(ctx, 'vert', v.face);
+        else await runLayout(ctx, v.mode, true);
+      });
     } finally { busy = false; el.classList.remove('busy'); }
   }
   function planFor(pid, ctx, clip) {

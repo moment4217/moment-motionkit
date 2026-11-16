@@ -928,7 +928,7 @@ function mk_insertLayer(json) {
             var last = merged[merged.length - 1];
             if (last && ranges[i][0] <= last[1] + tpf * 0.5) last[1] = Math.max(last[1], ranges[i][1]); else merged.push([ranges[i][0], ranges[i][1]]);
         }
-        var done = 0, where = [], fails = [];
+        var done = 0, where = [], fails = [], created = [];
         for (i = 0; i < merged.length; i++) {
             var s0 = merged[i][0], e0 = merged[i][1];
             var t = mkFreeTrackAbove(seq, s0, e0, minT);
@@ -942,9 +942,9 @@ function mk_insertLayer(json) {
             if (!nc) { fails.push("find"); continue; }
             try { nc.end = mkTime(e0); } catch (eE) {}
             if (Math.abs(Number(nc.end.ticks) - e0) > tpf * 0.5) { try { nc.end = e0 / MK_TPS; } catch (eE2) {} }
-            done++; where.push(t + 1);
+            done++; where.push(t + 1); created.push({ t: t, start: Number(nc.start.ticks), id: mkClipId(nc, t, 0) });
         }
-        return mkJson({ ok: true, done: done, tracks: where, fails: fails, ranges: merged.length });
+        return mkJson({ ok: true, done: done, tracks: where, fails: fails, ranges: merged.length, created: created });
     } catch (e) { return mkErr("ex", String(e)); }
 }
 /* 패널이 검은 화면 그림을 저장할 폴더 */
@@ -1578,5 +1578,224 @@ function mk_removeApplied(json) {
             } else return mkErr("remove");
         }
         return mkJson({ ok: true, whole: whole });
+    } catch (e) { return mkErr("ex", String(e)); }
+}
+
+/* =================== v1.7.4: 마지막 적용 되돌리기 ===================
+ * 프리미어 스크립트 작업은 Ctrl+Z 기록이 아주 잘게 쪼개져서(키 하나·값 하나씩) 한 번에 되돌릴 수 없다.
+ * 그래서 작업 직전에 대상 클립의 효과 상태를 통째로 적어 두고(undo.json, 최근 10개), 되돌리기 때 그 상태로 맞춘다.
+ * 바뀐 속성만 되돌리고, 작업이 넣은 효과는 빼고, 작업이 지운 효과는 다시 넣는다. 새로 넣은 클립(조정 레이어 등)은 지운다. */
+var MK_UNDO_MAX = 10;
+function mkUndoFile() {
+    var dir = new Folder(Folder.userData.fsName + "/MomentMotionKit");
+    if (!dir.exists) dir.create();
+    return new File(dir.fsName + "/undo.json");
+}
+function mkUndoLoad() {
+    var f = mkUndoFile();
+    if (!f.exists) return [];
+    try { f.encoding = "UTF-8"; f.open("r"); var s = f.read(); f.close(); var a = mkParse(s); return (a && typeof a.length === "number") ? a : []; } catch (e) { try { f.close(); } catch (e2) {} return []; }
+}
+function mkUndoSave(a) {
+    var f = mkUndoFile();
+    try { f.encoding = "UTF-8"; f.open("w"); f.write(mkJson(a)); f.close(); } catch (e) { try { f.close(); } catch (e2) {} }
+}
+function mkSnapVal(v) {
+    if (typeof v === "number" || typeof v === "boolean" || typeof v === "string") return v;
+    if (v && typeof v.length === "number" && v.length <= 4) {
+        var o = [];
+        for (var i = 0; i < v.length; i++) { if (typeof v[i] !== "number") return null; o.push(v[i]); }
+        return o;
+    }
+    return null;
+}
+function mkSame2(a, b) {
+    if (a === b) return true;
+    if (typeof a === "number" && typeof b === "number") return Math.abs(a - b) < 1e-6;
+    if (a && b && typeof a.length === "number" && a.length === b.length) { for (var i = 0; i < a.length; i++) if (!mkSame2(a[i], b[i])) return false; return true; }
+    return false;
+}
+function mkSnapParam(p) {
+    var o = { tv: false, n: "" };
+    try { o.n = String(p.displayName); } catch (e0) {}
+    try { o.tv = !!p.isTimeVarying(); } catch (e1) { o.tv = false; }
+    if (o.tv) {
+        var keys = null, ks = [];
+        try { keys = p.getKeys(); } catch (e2) { keys = null; }
+        if (keys) {
+            for (var k = 0; k < keys.length; k++) {
+                var tk = Number(keys[k].ticks), v = null;
+                try { v = mkSnapVal(p.getValueAtKey(keys[k])); } catch (e3) { v = null; }
+                ks.push([tk, v, 0]);
+            }
+            /* 계단(홀드) 키인지: 두 키 사이 가운데 값이 앞 키 값 그대로면 홀드 */
+            for (k = 0; k < ks.length - 1; k++) {
+                if (mkSame2(ks[k][1], ks[k + 1][1])) continue;
+                var mid = null;
+                try { mid = mkSnapVal(p.getValueAtTime(mkTime((ks[k][0] + ks[k + 1][0]) / 2))); } catch (e4) { mid = null; }
+                if (mid !== null && mkSame2(mid, ks[k][1])) ks[k][2] = 4;
+            }
+        }
+        o.k = ks;
+    } else {
+        var gv = null;
+        try { gv = p.getValue(); } catch (e5) { gv = null; }
+        o.v = mkSnapVal(gv);
+        if (o.v === null && gv !== null && gv !== undefined) { try { var cv = p.getColorValue(); if (cv && cv.length === 4) o.c = [cv[0], cv[1], cv[2], cv[3]]; } catch (e6) {} }
+    }
+    return o;
+}
+function mkSnapComp(comp) {
+    var o = { m: "", d: "", p: [] };
+    try { o.m = String(comp.matchName); } catch (e) {}
+    try { o.d = String(comp.displayName); } catch (e2) {}
+    for (var i = 0; i < comp.properties.numItems; i++) o.p.push(mkSnapParam(comp.properties[i]));
+    return o;
+}
+function mkSnapClip(clip, t) {
+    var o = { id: mkClipId(clip, t, 0), t: t, start: Number(clip.start.ticks), name: String(clip.name), comps: [] };
+    for (var i = 0; i < clip.components.numItems; i++) o.comps.push(mkSnapComp(clip.components[i]));
+    return o;
+}
+function mkFindClip(seq, snap, tpf) {
+    var t, c, tr;
+    for (t = 0; t < seq.videoTracks.numTracks; t++) {
+        tr = seq.videoTracks[t];
+        for (c = 0; c < tr.clips.numItems; c++) { try { if (tr.clips[c].nodeId && String(tr.clips[c].nodeId) === snap.id) return { clip: tr.clips[c], t: t }; } catch (e) {} }
+    }
+    if (snap.t < seq.videoTracks.numTracks) {
+        tr = seq.videoTracks[snap.t];
+        for (c = 0; c < tr.clips.numItems; c++) if (Math.abs(Number(tr.clips[c].start.ticks) - snap.start) <= tpf * 0.5 && String(tr.clips[c].name) === snap.name) return { clip: tr.clips[c], t: snap.t };
+    }
+    return null;
+}
+/* json: { label, clips: [{ t, c }] | null(선택 클립) } → 지금 상태를 적어 둔다 */
+function mk_undoBegin(json) {
+    try {
+        var o = json ? mkParse(json) : {}, seq = app.project.activeSequence;
+        if (!seq) return mkErr("noseq");
+        var list = [], seen = {}, i;
+        if (o.clips && o.clips.length) {
+            for (i = 0; i < o.clips.length; i++) {
+                var key = o.clips[i].t + ":" + o.clips[i].c;
+                if (seen[key]) continue; seen[key] = 1;
+                var cl = seq.videoTracks[o.clips[i].t] ? seq.videoTracks[o.clips[i].t].clips[o.clips[i].c] : null;
+                if (cl) list.push(mkSnapClip(cl, o.clips[i].t));
+            }
+        } else {
+            var sel = mkSelected(seq);
+            for (i = 0; i < sel.length; i++) list.push(mkSnapClip(sel[i].clip, sel[i].t));
+        }
+        var st = mkUndoLoad();
+        st.push({ label: String(o.label || ""), at: new Date().getTime(), clips: list, created: [] });
+        while (st.length > MK_UNDO_MAX) st.shift();
+        mkUndoSave(st);
+        return mkJson({ ok: true, clips: list.length, depth: st.length });
+    } catch (e) { return mkErr("ex", String(e)); }
+}
+/* 작업이 새로 만든 클립 기록 (되돌리기 때 지움) */
+function mk_undoNote(json) {
+    try {
+        var o = mkParse(json), st = mkUndoLoad();
+        if (!st.length) return mkErr("empty");
+        var last = st[st.length - 1];
+        for (var i = 0; i < (o.created || []).length; i++) last.created.push(o.created[i]);
+        mkUndoSave(st);
+        return mkJson({ ok: true });
+    } catch (e) { return mkErr("ex", String(e)); }
+}
+function mk_undoDrop() {
+    try { var st = mkUndoLoad(); st.pop(); mkUndoSave(st); return mkJson({ ok: true, depth: st.length }); } catch (e) { return mkErr("ex", String(e)); }
+}
+function mk_undoPeek() {
+    try { var st = mkUndoLoad(), l = st.length ? st[st.length - 1] : null; return mkJson({ ok: true, depth: st.length, label: l ? l.label : "", clips: l ? l.clips.length : 0, at: l ? l.at : 0 }); } catch (e) { return mkErr("ex", String(e)); }
+}
+/* 두 이름 목록의 가장 긴 공통 부분(효과 짝 맞추기) */
+function mkLcs(a, b) {
+    var n = a.length, m = b.length, L = [], i, j;
+    for (i = 0; i <= n; i++) { L.push([]); for (j = 0; j <= m; j++) L[i].push(0); }
+    for (i = n - 1; i >= 0; i--) for (j = m - 1; j >= 0; j--) L[i][j] = a[i] === b[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+    var pairs = []; i = 0; j = 0;
+    while (i < n && j < m) { if (a[i] === b[j]) { pairs.push([i, j]); i++; j++; } else if (L[i + 1][j] >= L[i][j + 1]) i++; else j++; }
+    return pairs;
+}
+function mkRestoreParam(p, s) {
+    var cur = mkSnapParam(p);
+    if (mkJson(cur.tv ? cur.k : [cur.v, cur.c]) === mkJson(s.tv ? s.k : [s.v, s.c]) && cur.tv === s.tv) return 0;   /* 그대로면 손대지 않음 */
+    if (s.tv) {
+        try { if (!p.isTimeVarying()) p.setTimeVarying(true); } catch (e1) {}
+        if (cur.tv && cur.k && cur.k.length) { try { p.removeKeyRange(mkTime(cur.k[0][0] - 1), mkTime(cur.k[cur.k.length - 1][0] + 1), false); } catch (e2) {} }
+        for (var k = 0; k < s.k.length; k++) {
+            var tm = mkTime(s.k[k][0]);
+            try { p.addKey(tm); } catch (e3) {}
+            if (s.k[k][1] !== null) { try { p.setValueAtKey(tm, s.k[k][1], k === s.k.length - 1 ? 1 : 0); } catch (e4) {} }
+            try { p.setInterpolationTypeAtKey(tm, s.k[k][2] || 0, 0); } catch (e5) {}
+        }
+    } else {
+        try { p.setTimeVarying(false); } catch (e6) {}
+        if (s.c) { try { p.setColorValue(s.c[0], s.c[1], s.c[2], s.c[3], 1); } catch (e7) {} }
+        else if (s.v !== null && s.v !== undefined) mkSet(p, s.v);
+    }
+    return 1;
+}
+function mkRestoreComp(comp, s) {
+    var n = 0, pr = comp.properties;
+    for (var i = 0; i < pr.numItems && i < s.p.length; i++) n += mkRestoreParam(pr[i], s.p[i]);
+    return n;
+}
+/* 가장 최근 작업 되돌리기 */
+function mk_undo() {
+    try {
+        var seq = app.project.activeSequence;
+        if (!seq) return mkErr("noseq");
+        var st = mkUndoLoad();
+        if (!st.length) return mkErr("empty");
+        var last = st.pop(), tpf = Number(seq.timebase), qs = null, removed = 0, readded = 0, params = 0, gone = 0, delClips = 0, i, k;
+        try { app.enableQE(); qs = qe.project.getActiveSequence(); } catch (e0) { qs = null; }
+        /* 1) 작업이 새로 만든 클립 지우기 */
+        for (i = 0; i < last.created.length; i++) {
+            var cr = last.created[i], hit = mkFindClip(seq, { id: cr.id, t: cr.t, start: cr.start, name: "" }, tpf);
+            if (!hit && cr.t < seq.videoTracks.numTracks) {
+                var trc = seq.videoTracks[cr.t];
+                for (k = 0; k < trc.clips.numItems; k++) if (Math.abs(Number(trc.clips[k].start.ticks) - cr.start) <= tpf * 0.5) hit = { clip: trc.clips[k], t: cr.t };
+            }
+            if (hit) { try { hit.clip.remove(false, false); delClips++; } catch (e1) {} }
+        }
+        /* 2) 효과 상태 되돌리기 */
+        for (var s = 0; s < last.clips.length; s++) {
+            var snap = last.clips[s], f = mkFindClip(seq, snap, tpf);
+            if (!f) { gone++; continue; }
+            var clip = f.clip, cur = [], want = [];
+            for (i = 0; i < clip.components.numItems; i++) cur.push(String(clip.components[i].matchName));
+            for (i = 0; i < snap.comps.length; i++) want.push(snap.comps[i].m);
+            var pairs = mkLcs(cur, want), inCur = {}, inWant = {};
+            for (i = 0; i < pairs.length; i++) { inCur[pairs[i][0]] = pairs[i][1]; inWant[pairs[i][1]] = 1; }
+            /* 짝이 맞는 효과: 바뀐 속성만 되돌림 */
+            for (i = 0; i < cur.length; i++) if (inCur[i] !== undefined) params += mkRestoreComp(clip.components[i], snap.comps[inCur[i]]);
+            /* 작업이 넣은 효과: 뒤에서부터 지우기 (QE 는 표시 이름 순번으로 찾는다) */
+            var qi = qs ? mkQeItem(qs, f.t, clip, tpf) : null, qn = [];
+            if (qi) { for (k = 0; k < qi.numComponents; k++) { try { qn.push(String(qi.getComponentAt(k).name)); } catch (e2) { qn.push(""); } } }
+            for (i = cur.length - 1; i >= 0; i--) {
+                if (inCur[i] !== undefined || !qi) continue;
+                var dn = String(clip.components[i].displayName), ord = 0, q = -1, cnt = 0;
+                for (k = 0; k < i; k++) if (String(clip.components[k].displayName) === dn) ord++;
+                for (k = 0; k < qn.length; k++) if (qn[k] === dn) { if (cnt === ord) { q = k; break; } cnt++; }
+                if (q >= 0) { try { qi.getComponentAt(q).remove(); removed++; qn.splice(q, 1); } catch (e3) {} }
+            }
+            /* 작업이 지운 효과: 다시 넣고 값 되돌리기 */
+            for (i = 0; i < want.length; i++) {
+                if (inWant[i]) continue;
+                var spec = null;
+                for (var kk in MK_SPECS) if (MK_SPECS[kk].ok(want[i])) { spec = MK_SPECS[kk]; break; }
+                if (!spec || !qs) continue;
+                var cIdx = -1, tt = f.t, cc = -1;
+                var trk = seq.videoTracks[tt];
+                for (k = 0; k < trk.clips.numItems; k++) if (trk.clips[k] === clip || Math.abs(Number(trk.clips[k].start.ticks) - Number(clip.start.ticks)) <= tpf * 0.25) cc = k;
+                if (cc >= 0) cIdx = mkAddFx(seq, qs, tt, cc, tpf, spec);
+                if (cIdx >= 0) { params += mkRestoreComp(seq.videoTracks[tt].clips[cc].components[cIdx], snap.comps[i]); readded++; }
+            }
+        }
+        mkUndoSave(st);
+        return mkJson({ ok: true, label: last.label, clips: last.clips.length, params: params, removed: removed, readded: readded, gone: gone, delClips: delClips, depth: st.length });
     } catch (e) { return mkErr("ex", String(e)); }
 }
