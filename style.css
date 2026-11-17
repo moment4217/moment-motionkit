@@ -516,3 +516,43 @@ body.vbar .miniDur { display: none; }
 .undoBtn { flex: none; padding: 5px 9px; font-size: 14px; line-height: 1; }
 .undoBtn:hover { color: #fff; border-color: var(--accent2); }
 .undoBtn.busy { opacity: .5; pointer-events: none; }
+/* v1.7.5: 기준점 화면의 얼굴 상자 */
+.pickFaces { position: absolute; inset: 0; pointer-events: none; }
+.faceBox { position: absolute; border: 2px dashed rgba(255,211,106,.7); border-radius: 8px; pointer-events: auto; cursor: pointer; box-sizing: border-box; }
+.faceBox:hover { border-color: #FFD36A; background: rgba(255,211,106,.08); }
+.faceBox.on { border-style: solid; border-color: #FFD36A; box-shadow: 0 0 0 2px rgba(0,0,0,.4); }
+
+/* ---------- v1.7.5: 이모지 탭 ---------- */
+.emFind { position: relative; margin-bottom: 6px; }
+.emFind input { width: 100%; background: #151515; border: 1px solid #3a3a3a; border-radius: 14px; color: var(--text); padding: 5px 24px 5px 11px; font-size: 12px; outline: none; }
+.emFind input:focus { border-color: var(--accent2); }
+.emFind.has .mFindX { display: block; }
+.emCats { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-bottom: 6px; }
+.emCats::-webkit-scrollbar { display: none; }
+.emCats button { flex: none; padding: 3px 9px; font-size: 11.5px; white-space: nowrap; }
+.emOpts { margin-bottom: 4px; }
+.emOpts .row { min-height: 25px; gap: 6px; }
+.emOpts .row > label { width: 30px; font-size: 11px; flex: none; }
+.emOpts .seg button { padding: 2px 3px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.emOpts .hint { flex: 1; min-width: 0; font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#emPos { grid-template-columns: repeat(3, 12px); gap: 2px; }
+#emPos button { width: 12px; height: 12px; border-radius: 2px; }
+#emFace { flex: none; padding: 2px 8px; font-size: 11px; }
+#emFace.on { background: var(--accent2); color: #fff; }
+.emHead { font-size: 11px; color: #c8b8ff; margin: 0 2px 5px; }
+.emGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap: 3px; }
+.em { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 22px; line-height: 1; padding: 0; border-radius: 7px; background: #232326;
+  border: 1px solid transparent; font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif; position: relative; }
+.em:hover { background: #353a48; border-color: #4b5a86; }
+.em.busy { opacity: .45; pointer-events: none; }
+.em.fav::after { content: '★'; position: absolute; right: 2px; top: 0; font-size: 8px; color: #ffcf4a; font-family: sans-serif; }
+.emTip { position: fixed; z-index: 80; display: none; width: 150px; background: #2b2b30; border: 1px solid #4b5a86; border-radius: 9px; padding: 7px; box-shadow: 0 8px 24px rgba(0,0,0,.6); pointer-events: none; }
+.emTip.show { display: block; }
+.emTip .big { font-size: 46px; text-align: center; line-height: 1.15; font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+  background: repeating-conic-gradient(#2e2e33 0 25%, #26262a 0 50%) 0 0 / 12px 12px; border-radius: 6px; }
+.emTip b { display: block; font-size: 11.5px; margin-top: 4px; color: #fff; }
+.emTip small { display: block; font-size: 10px; color: #aaa; line-height: 1.35; }
+@media (max-width: 330px) { .tab { padding: 4px 6px; } }
+.tab { white-space: nowrap; }
+@media (max-width: 340px) { .tab { padding: 4px 5px; font-size: 11px; } }
+@media (max-width: 340px) { header .icon { padding: 2px 5px; } header { gap: 4px; } .tabs { gap: 1px; } }

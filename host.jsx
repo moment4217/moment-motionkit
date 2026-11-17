@@ -539,7 +539,7 @@ function mk_apply(json) {
                 var props = seq.videoTracks[pl.t].clips[pl.c].components[tf.ci].properties;
                 if (props.numItems < 11) { failed.push("tfprops"); continue; }
                 /* 기준점(확대·회전 중심): 기준점과 위치 기본값을 같은 점으로 */
-                var pv = (pl.pivot && pl.pivot.length === 2) ? [pl.pivot[0], pl.pivot[1]] : [0.5, 0.5];
+                var pv = (pl.pivot && pl.pivot.length === 2) ? mkScreenToLayer(seq.videoTracks[pl.t].clips[pl.c], seq, pl.pivot) : [0.5, 0.5];
                 try { if (!props[0].isTimeVarying()) mkSet(props[0], pv); } catch (eA) {}
                 /* 위치를 안 쓰는 효과도 위치 = 기준점 으로 맞춰야 화면이 밀리지 않음 */
                 if (!pl.props.pos) { try { if (!props[MK_TF.pos].isTimeVarying()) mkSet(props[MK_TF.pos], pv); } catch (eB) {} }
@@ -729,12 +729,13 @@ function mk_typingFrame(json) {
  */
 function mk_setPivot(json) {
     try {
-        var o = mkParse(json), pv = o.pivot;
+        var o = mkParse(json), pv0s = o.pivot, pv;
         var seq = app.project.activeSequence;
         if (!seq) return mkErr("noseq");
         var sel = mkSelected(seq), n = 0;
         for (var s = 0; s < sel.length; s++) {
             var clip = sel[s].clip, ci = mkFindFx(clip, MK_SPECS.tf);
+            pv = mkScreenToLayer(clip, seq, pv0s);
             if (ci < 0) continue;
             var props = clip.components[ci].properties;
             if (props.numItems < 11) continue;
@@ -866,6 +867,15 @@ function mkIsAdjust(it) {
     try { n = String(it.name); } catch (e2) { n = ""; }
     return it.type === 1 && /^(adjustment layer|\uC870\uC815 \uB808\uC774\uC5B4)(\s*\d*)?$/i.test(n);
 }
+/* 프로젝트 항목 원본 크기 (메타데이터) → { w, h } 또는 null */
+function mkItemSize(it) {
+    try {
+        var md = String(it.getProjectMetadata());
+        var m = /Column\.Intrinsic\.VideoInfo>\s*(\d+)\s*x\s*(\d+)/.exec(md);
+        if (m && Number(m[1]) > 0 && Number(m[2]) > 0) return { w: Number(m[1]), h: Number(m[2]) };
+    } catch (e) {}
+    return null;
+}
 function mkBin(name) {
     var root = app.project.rootItem;
     for (var i = 0; i < root.children.numItems; i++) if (root.children[i].type === 2 && String(root.children[i].name) === name) return root.children[i];
@@ -898,7 +908,9 @@ function mk_insertLayer(json) {
         if (!seq) return mkErr("noseq");
         var tpf = Number(seq.timebase), item = null, i;
         if (o.kind === "adjust") {
-            var all = mkItemsDeep(app.project.rootItem);
+            var all = mkItemsDeep(app.project.rootItem), SW = Number(seq.frameSizeHorizontal), SH = Number(seq.frameSizeVertical);
+            /* 시퀀스와 같은 크기의 조정 레이어를 먼저, 없으면 아무거나 (넣은 뒤 크기를 맞춤) */
+            for (i = 0; i < all.length && !item; i++) if (mkIsAdjust(all[i])) { var zs = mkItemSize(all[i]); if (zs && zs.w === SW && zs.h === SH) item = all[i]; }
             for (i = 0; i < all.length && !item; i++) if (mkIsAdjust(all[i])) item = all[i];
             if (!item) {   /* 새로 만들 수 있는 버전이면 만든다 */
                 try { if (app.project.createNewAdjustmentLayer) item = app.project.createNewAdjustmentLayer(); } catch (eA) { item = null; }
@@ -919,7 +931,7 @@ function mk_insertLayer(json) {
             if (!item) return mkErr("import");
         }
         /* 넣을 구간들 */
-        var sel = mkSelected(seq), ranges = [], minT = 0;
+        var sel = o.playhead ? [] : mkSelected(seq), ranges = [], minT = 0;
         for (i = 0; i < sel.length; i++) { ranges.push([Number(sel[i].clip.start.ticks), Number(sel[i].clip.end.ticks)]); minT = Math.max(minT, sel[i].t + 1); }
         if (!ranges.length) { var ph = Number(seq.getPlayerPosition().ticks); ranges.push([ph, ph + Math.round((o.dur || 5) * MK_TPS / tpf) * tpf]); }
         ranges.sort(function (a, b) { return a[0] - b[0]; });
@@ -928,7 +940,7 @@ function mk_insertLayer(json) {
             var last = merged[merged.length - 1];
             if (last && ranges[i][0] <= last[1] + tpf * 0.5) last[1] = Math.max(last[1], ranges[i][1]); else merged.push([ranges[i][0], ranges[i][1]]);
         }
-        var done = 0, where = [], fails = [], created = [];
+        var done = 0, where = [], fails = [], created = [], fitted = 0;
         for (i = 0; i < merged.length; i++) {
             var s0 = merged[i][0], e0 = merged[i][1];
             var t = mkFreeTrackAbove(seq, s0, e0, minT);
@@ -942,9 +954,20 @@ function mk_insertLayer(json) {
             if (!nc) { fails.push("find"); continue; }
             try { nc.end = mkTime(e0); } catch (eE) {}
             if (Math.abs(Number(nc.end.ticks) - e0) > tpf * 0.5) { try { nc.end = e0 / MK_TPS; } catch (eE2) {} }
-            done++; where.push(t + 1); created.push({ t: t, start: Number(nc.start.ticks), id: mkClipId(nc, t, 0) });
+            /* 시퀀스 크기와 다르면 모션 비율로 화면을 꽉 덮게 (조정 레이어·검은 화면) */
+            if (o.fit !== false) {
+                var isz = mkItemSize(item), FW = Number(seq.frameSizeHorizontal), FH = Number(seq.frameSizeVertical);
+                if (isz && (isz.w !== FW || isz.h !== FH)) {
+                    var mo = mkMotionComp(nc);
+                    if (mo) { mkSet(mo.properties[3], true); mkSet(mo.properties[0], [0.5, 0.5]); mkSet(mo.properties[1], Math.max(FW / isz.w, FH / isz.h) * 100); fitted++; }
+                }
+            }
+            var ci2 = -1;
+            for (var c2 = 0; c2 < tr.clips.numItems; c2++) if (tr.clips[c2] === nc || Math.abs(Number(tr.clips[c2].start.ticks) - Number(nc.start.ticks)) <= tpf * 0.25) ci2 = c2;
+            done++; where.push(t + 1);
+            created.push({ t: t, c: ci2, start: Number(nc.start.ticks), end: Number(nc.end.ticks), inPoint: Number(nc.inPoint.ticks), id: mkClipId(nc, t, 0), name: String(nc.name) });
         }
-        return mkJson({ ok: true, done: done, tracks: where, fails: fails, ranges: merged.length, created: created });
+        return mkJson({ ok: true, done: done, tracks: where, fails: fails, ranges: merged.length, created: created, fitted: fitted, w: Number(seq.frameSizeHorizontal), h: Number(seq.frameSizeVertical) });
     } catch (e) { return mkErr("ex", String(e)); }
 }
 /* 패널이 검은 화면 그림을 저장할 폴더 */
@@ -1240,6 +1263,22 @@ function mkValAt(prm, ticks) {
     if (v === null || v === undefined) { try { v = prm.getValue(); } catch (e2) { v = null; } }
     return v;
 }
+/* 화면 위의 점(0~1) → 클립 안의 점(0~1). 클립을 키우거나 옮겨 놓았으면(세로 맞춤·PIP 등) 기준점이 화면에서 찍은 곳에 오도록.
+ * 가운데(0.5, 0.5)는 예전처럼 클립 가운데. 모션 값은 클립 시작 시점 기준 */
+function mkScreenToLayer(clip, seq, pv) {
+    if (!pv || (Math.abs(pv[0] - 0.5) < 1e-6 && Math.abs(pv[1] - 0.5) < 1e-6)) return [0.5, 0.5];
+    var mo = mkMotionComp(clip);
+    if (!mo || mo.properties.numItems < 6) return [pv[0], pv[1]];
+    var W = Number(seq.frameSizeHorizontal), H = Number(seq.frameSizeVertical), lay = mkLayerSize(clip, seq);
+    var ct = Number(clip.inPoint.ticks), pr = mo.properties, uni = true;
+    try { uni = pr[3].getValue() ? true : false; } catch (e1) { uni = true; }
+    var sc = mkNum(mkValAt(pr[1], ct), 100) / 100, sw = uni ? sc : mkNum(mkValAt(pr[2], ct), sc * 100) / 100;
+    var P = mkPt(mkValAt(pr[0], ct), 0.5, 0.5), A = mkPt(mkValAt(pr[5], ct), 0.5, 0.5), th = mkNum(mkValAt(pr[4], ct), 0) * Math.PI / 180;
+    var dx = pv[0] * W - P[0] * W, dy = pv[1] * H - P[1] * H, c = Math.cos(th), sn = Math.sin(th);
+    var rx = c * dx + sn * dy, ry = -sn * dx + c * dy;
+    var lx = (A[0] * lay.w + rx / Math.max(1e-4, sw)) / lay.w, ly = (A[1] * lay.h + ry / Math.max(1e-4, sc)) / lay.h;
+    return [Math.max(0, Math.min(1, lx)), Math.max(0, Math.min(1, ly))];
+}
 function mkMotionComp(clip) {
     for (var i = 0; i < clip.components.numItems; i++) {
         var m = "";
@@ -1249,7 +1288,7 @@ function mkMotionComp(clip) {
     return null;
 }
 function mkPt(v, dx, dy) {
-    if (v instanceof Array && v.length >= 2 && typeof v[0] === "number" && typeof v[1] === "number") return [v[0], v[1]];
+    if (v && typeof v === "object" && v.length >= 2 && typeof v[0] === "number" && typeof v[1] === "number") return [v[0], v[1]];
     return [dx, dy];
 }
 function mkNum(v, d) { return (typeof v === "number" && isFinite(v)) ? v : d; }

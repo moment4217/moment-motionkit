@@ -5,6 +5,7 @@
     <button class="tab" data-tab="curve">커브</button>
     <button class="tab" data-tab="fx">효과</button>
     <button class="tab" data-tab="track">트래킹</button>
+    <button class="tab" data-tab="emoji">이모지</button>
   </nav>
   <button class="icon langBtn noTr" id="btnLang" title="View in English">EN</button>
   <button class="icon" id="btnReload" title="패널 새로고침 (engine.js 등을 고친 뒤)">↻</button>
@@ -209,6 +210,24 @@
     <p class="note">추적이 끝나면 선택했던 클립에 바로 들어가요. 속성·부드럽게를 바꾼 뒤 "다시 적용"을 누르면 다시 추적하지 않고 값만 바뀌어요. 같은 추적을 다른 클립에 넣을 때도 그 클립을 선택하고 "다시 적용".</p>
     <p class="note">무늬가 뚜렷한 곳(얼굴, 로고, 글자, 모서리)을 지정할수록 잘 따라가요. 추적하는 동안 재생헤드가 움직이고 위쪽 트랙이 잠깐 꺼졌다가 끝나면 원래대로 돌아와요.</p>
   </section>
+  <!-- 이모지 탭 (v1.7.5): 원래 색 그대로 그림으로 넣기 -->
+  <section id="tab-emoji" class="pane split">
+    <div class="sTop">
+      <div class="emFind"><input id="emSearch" placeholder="이모지 검색 (하트, 웃음, 불, fire …)"><button class="mFindX" id="emSearchX" title="지우기">×</button></div>
+      <div class="cats emCats" id="emCats"></div>
+      <div class="opts compact emOpts">
+        <div class="row"><label>크기</label><div class="seg" id="emSize"><button data-v="s">작게</button><button data-v="m">보통</button><button data-v="l">크게</button><button data-v="full">화면 꽉</button></div></div>
+        <div class="row"><label>위치</label><div class="pivGrid" id="emPos"></div><span class="hint" id="emPosLbl"></span><button class="chipA" id="emFace" title="지금 화면에서 얼굴을 찾아 그 옆에 놓아요">얼굴 옆</button></div>
+        <div class="row"><label>모션</label><div class="seg" id="emMotion"><button data-v="none">없음</button><button data-v="pop">팝</button><button data-v="thud">쾅</button><button data-v="bounce">통통</button><button data-v="shake">흔들</button></div></div>
+        <div class="row"><label>길이</label><div class="seg" id="emLen"><button data-v="clip" title="선택한 클립 길이에 맞춰 (선택이 없으면 재생헤드부터 3초)">선택 클립</button><button data-v="ph">재생헤드부터 3초</button></div></div>
+      </div>
+    </div>
+    <div class="sScroll">
+      <div class="emHead" id="emHead"></div>
+      <div class="emGrid" id="emGrid"></div>
+      <p class="note">누르면 투명 배경 그림(PNG)으로 만들어 위쪽 빈 트랙에 넣어요 · 원래 색 그대로 · 우클릭: ★ 즐겨찾기 · 이모지 모양은 이 컴퓨터의 기본 이모지예요</p>
+    </div>
+  </section>
 </main>
 <!-- 선택 클립에 들어간 모션 -->
 <div class="pickBox segBox" id="appliedBox">
@@ -230,7 +249,7 @@
 <div class="pickBox" id="pickBox">
   <div class="pickPanel">
     <div class="pickHead"><b>기준점 바꾸기</b><small>점을 드래그하거나 클릭하세요 · 놓으면 그 점을 중심으로 줌되는 모습을 미리 보여줘요 · 선택한 클립에 이미 넣은 모션도 바로 바뀌어요</small></div>
-    <div class="pickWrap"><div class="pickImg" id="pickImg"><div class="pickView"><img id="pickPic" alt="" draggable="false"></div><i class="pickGuide v" id="pickGv"></i><i class="pickGuide h" id="pickGh"></i><span class="pickDot" id="pickDot"></span></div></div>
+    <div class="pickWrap"><div class="pickImg" id="pickImg"><div class="pickView"><img id="pickPic" alt="" draggable="false"></div><div class="pickFaces" id="pickFaces"></div><i class="pickGuide v" id="pickGv"></i><i class="pickGuide h" id="pickGh"></i><span class="pickDot" id="pickDot"></span></div></div>
     <div class="pickBtns"><span class="pickRead" id="pickRead"></span><button class="ghost" id="pickPlay" title="이 점을 중심으로 줌되는 모습 다시 보기">▶ 미리보기</button><button class="ghost" id="pickCenter">가운데로</button><button class="primary" id="pickDone">완료</button></div>
   </div>
 </div>

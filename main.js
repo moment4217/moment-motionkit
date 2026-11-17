@@ -5,7 +5,7 @@
   var cep = window.__adobe_cep__;
   var FORCE_MINI = !!window.MK_FORCE_MINI;          // mini.html (별도 미니 패널)
   var MAIN_ID = 'com.moment.motionkit.main';
-  var RUN = window.MK_RUNNING || { v: '1.7.4', src: 'bundled' };
+  var RUN = window.MK_RUNNING || { v: '1.7.5', src: 'bundled' };
   var VERSION = 'v' + RUN.v;
   var SRCNAME = { online: '방금 자동 업데이트됨', cache: '저장된 업데이트', bundled: '설치본' };
 
@@ -174,6 +174,35 @@
     '조정 레이어': 'Adjustment layer', '검은 화면': 'Black screen', '＋ 조정': '＋ Adj.', '＋ 검정': '＋ Black',
     '아래 목록이나 위 빠르게 넣기의 ☆ 를 눌러 추가하세요': 'Press ☆ in the list below or on the quick-insert buttons above to add',
     '마지막 모션 킷 작업 되돌리기 (Ctrl+Z)': 'Undo the last Motion Kit action (Ctrl+Z)',
+    "이모지": "Emoji",
+    "이모지 검색 (하트, 웃음, 불, fire …)": "Search emoji (heart, smile, fire …)",
+    "작게": "Small",
+    "보통": "Medium",
+    "크게": "Large",
+    "화면 꽉": "Full",
+    "얼굴 옆": "By face",
+    "지금 화면에서 얼굴을 찾아 그 옆에 놓아요": "Finds the face in the current frame and places the emoji next to it",
+    "팝": "Pop",
+    "쾅": "Slam",
+    "통통": "Bounce",
+    "흔들": "Shake",
+    "선택 클립": "Selected clip",
+    "재생헤드부터 3초": "3s from playhead",
+    "선택한 클립 길이에 맞춰 (선택이 없으면 재생헤드부터 3초)": "Matches the selected clip (no selection: 3s from the playhead)",
+    "누르면 투명 배경 그림(PNG)으로 만들어 위쪽 빈 트랙에 넣어요 · 원래 색 그대로 · 우클릭: ★ 즐겨찾기 · 이모지 모양은 이 컴퓨터의 기본 이모지예요": "Click to insert as a transparent PNG on a free track above · keeps its colors · right-click: ★ favorite · uses this computer's emoji style",
+    "왼쪽 위": "Top left",
+    "위": "Top",
+    "오른쪽 위": "Top right",
+    "왼쪽": "Left",
+    "가운데": "Center",
+    "오른쪽": "Right",
+    "왼쪽 아래": "Bottom left",
+    "아래": "Bottom",
+    "오른쪽 아래": "Bottom right",
+    "크기": "Size",
+    "위치": "Position",
+    "모션": "Motion",
+    "길이": "Length",
     '편집 도구': 'Edit tools', '얼굴': 'Face',
     '지금 화면에서 얼굴을 찾아 기준점으로 (줌이 얼굴 중심으로 커져요)': 'Find the face in the current frame and use it as the pivot (zooms grow from the face)',
     '선택 클립에 들어간 모션': 'Motions on the selected clips',
@@ -450,6 +479,7 @@
     opts: { size: 3, speed: 3, dur: 0, zoomRate: 0, anchor: 'start', blur: true, cat: 'all', step: 1, mini: false, scope: 'all',
       kinds: { pos: true, scale: true, rot: true, op: true, other: false }, curveAll: true,
       typing: { text: '', fpc: 4, width: '', center: '' }, outside: false, pivot: [0.5, 0.5], autoArea: true, fillColor: 'yellow',
+      em: { size: 'm', pos: 2, face: false, motion: 'pop', len: 'clip' },
       trk: { mode: 'follow', range: 'clip', step: 1, pos: true, scale: true, rot: true, smooth: 15, blur: false, zoom: 100 } },
     tipOff: false,
     lang: 'ko',
@@ -457,6 +487,8 @@
     favs: MK.DEFAULT_FAVS.slice(),
     fxFavs: [],
     toolFavs: ['cycle:0', 'trans:0', 'vert:0', 'split:0'],
+    emFavs: [],
+    emRecent: [],
     curve: MK.EASES.out.slice(),
     mine: []
   };
@@ -559,6 +591,7 @@
       if (b.dataset.tab === 'curve') drawCurve();
       if (b.dataset.tab === 'fx') openFxTab();
       if (b.dataset.tab === 'track') openTrkTab();
+      if (b.dataset.tab === 'emoji') openEmojiTab();
       btnFold.style.visibility = b.dataset.tab === 'motion' ? '' : 'hidden';
     });
   });
@@ -930,7 +963,7 @@
         src = blankFrame(c && c.w, c && c.h);
         lastGrabErr = r.ok ? 'load' : (r.err + (r.msg ? ' (' + r.msg + ')' : ''));
       }
-      pickPic.src = src; snapX = snapY = false; pickBox.classList.add('show'); placeDot();
+      pickPic.src = src; snapX = snapY = false; showFaces([]); pickBox.classList.add('show'); placeDot();
       status(im ? '점을 드래그하거나 클릭하세요 · 놓으면 그 점을 중심으로 줌되는 모습을 보여줘요'
                 : '화면 캡처가 안 돼서 빈 화면에 표시했어요 · 점은 그대로 옮길 수 있어요 (진단 정보 복사로 알려주세요)', im ? 'ok' : 'warn');
     } finally { picking0 = false; }
@@ -1839,10 +1872,11 @@
       });
     } finally { busy = false; el.classList.remove('busy'); }
   }
-  function planFor(pid, ctx, clip) {
+  function planFor(pid, ctx, clip, pivot) {
     var p = MK.getPreset(pid), o2 = {}, k;
     for (k in opts) o2[k] = opts[k];
     o2.anchor = 'start';
+    if (pivot) o2.pivot = pivot;
     var c2 = {}; for (k in ctx) c2[k] = ctx[k];
     c2.clips = [clip];
     return MK.buildPlan(p, o2, c2);
@@ -1875,18 +1909,23 @@
     status(LL('✓ 컷 전환 (' + v.v + ') · 컷 ' + (clips.length - 1) + '곳', '✓ Cut transition (' + v.en + ') · ' + (clips.length - 1) + ' cut(s)'), 'ok');
   }
   /* 캡처 한 장에서 얼굴 찾기 → 화면 비율 좌표 { x, y, s } 또는 null */
-  async function faceIn(path) {
-    var im = await loadFrame(path);
+  /* 캡처 한 장에서 얼굴 찾기 → 얼굴 목록(점수 순) · withSrc 면 화면 그림도 */
+  async function faceList(path, withSrc) {
+    var im = await loadFrame(path), src = null;
+    if (im && withSrc) src = toDataUrl(im);
     dropFrame(path);
-    if (!im || !window.MKFace) return null;
+    if (!im || !window.MKFace) return { faces: [], src: src };
     try {
       var iw = im.naturalWidth || im.width, ih = im.naturalHeight || im.height, sc = Math.min(1, 720 / Math.max(iw, ih));
       var c = document.createElement('canvas'); c.width = Math.round(iw * sc); c.height = Math.round(ih * sc);
       var g = c.getContext('2d'); g.drawImage(im, 0, 0, c.width, c.height);
       var f = MKFace.detect(g.getImageData(0, 0, c.width, c.height).data, c.width, c.height);
-      return f.length ? f[0] : null;
-    } catch (e) { return null; }
+      /* 확실한 얼굴만 (가장 좋은 것 + 점수 55 이상) */
+      f = f.filter(function (x, i) { return i === 0 || x.score >= 55; }).slice(0, 6);
+      return { faces: f, src: src };
+    } catch (e) { return { faces: [], src: src }; }
   }
+  async function faceIn(path) { var r = await faceList(path, false); return r.faces.length ? r.faces[0] : null; }
   async function runLayout(ctx, mode, useFace) {
     var clips = ctx.clips.slice().sort(function (a, b) { return a.t - b.t || a.start - b.start; });
     if (mode === 2 || mode === 3) {
@@ -1942,6 +1981,27 @@
   /* 기준점: 얼굴 찾기 (지금 화면) */
   var btnFace = document.getElementById('btnFace');
   if (btnFace) btnFace.addEventListener('click', function () { facePivot(btnFace); });
+  var pickFaces = document.getElementById('pickFaces');
+  var pickSmall = document.querySelector('#pickBox .pickHead small'), pickSmall0 = pickSmall ? pickSmall.textContent : '';
+  function showFaces(list, faceMode) {
+    if (pickSmall) pickSmall.textContent = faceMode ? LL('찾은 얼굴은 노란 상자 · 다른 얼굴이면 상자를 누르고, 맞지 않으면 점을 직접 옮기세요', 'Found faces are in yellow boxes · click another box to switch, or drag the dot') : pickSmall0;
+    if (!pickFaces) return;
+    pickFaces.innerHTML = '';
+    (list || []).forEach(function (f, i) {
+      var b = document.createElement('i'); b.className = 'faceBox' + (i === 0 ? ' on' : '');
+      var ar = pickPic.naturalWidth && pickPic.naturalHeight ? pickPic.naturalHeight / pickPic.naturalWidth : 9 / 16;
+      var hs = f.s * 1.05, ws = hs * ar;
+      b.style.left = ((f.x - ws / 2) * 100) + '%'; b.style.top = ((f.y - hs / 2) * 100) + '%'; b.style.width = (ws * 100) + '%'; b.style.height = (hs * 100) + '%';
+      b.title = LL('이 얼굴을 기준점으로', 'Use this face as the pivot');
+      b.addEventListener('mousedown', function (e) {
+        e.stopPropagation(); e.preventDefault();
+        pickFaces.querySelectorAll('.faceBox').forEach(function (x) { x.classList.toggle('on', x === b); });
+        opts.pivot = [Math.round(f.x * 1000) / 1000, Math.round(f.y * 1000) / 1000];
+        placeDot(); paintPivot(); save(); applyPivot(true); playPreview();
+      });
+      pickFaces.appendChild(b);
+    });
+  }
   async function facePivot(btnFace) {
     if (btnFace.classList.contains('busy')) return;
     btnFace.classList.add('busy');
@@ -1949,12 +2009,17 @@
       status(LL('얼굴을 찾는 중…', 'Finding the face…'));
       var r = await call('mk_grabFrame', {});
       if (!r.ok) return status(LL('화면을 캡처하지 못했어요 → "진단 정보 복사"를 눌러 알려주세요', 'Could not capture the frame → press "Copy diagnostics" and send it'), 'err');
-      var f = await faceIn(r.path);
+      var fl = await faceList(r.path, true), f = fl.faces[0];
       call('mk_cleanTmp');
-      if (!f) return status(LL('얼굴을 찾지 못했어요 → "화면에서 지정"으로 직접 찍어 주세요', 'No face found → set the pivot with "Pick on screen"'), 'warn');
-      opts.pivot = [Math.round(f.x * 1000) / 1000, Math.round(f.y * 1000) / 1000];
-      paintPivot(); save(); applyPivot(true);
-      status(LL('✓ 기준점: 얼굴 (' + pct(f.x) + '%, ' + pct(f.y) + '%) · 이제 넣는 줌이 얼굴을 중심으로 커져요', '✓ Pivot: face (' + pct(f.x) + '%, ' + pct(f.y) + '%) · zooms will now grow from the face'), 'ok');
+      if (f) {
+        opts.pivot = [Math.round(f.x * 1000) / 1000, Math.round(f.y * 1000) / 1000];
+        paintPivot(); save(); applyPivot(true);
+      }
+      /* 찾은 얼굴을 화면에 보여주고, 다른 얼굴이면 눌러서 바꾸거나 점을 직접 옮기게 */
+      if (fl.src) { pickPic.src = fl.src; snapX = snapY = false; showFaces(fl.faces, true); pickBox.classList.add('show'); placeDot(); playPreview(); }
+      if (!f) return status(LL('얼굴을 찾지 못했어요 → 화면에서 점을 직접 찍어 주세요', 'No face found → click the point on the frame yourself'), 'warn');
+      status(LL('✓ 기준점: 얼굴 (' + pct(f.x) + '%, ' + pct(f.y) + '%)' + (fl.faces.length > 1 ? ' · 얼굴 ' + fl.faces.length + '개 중 가장 확실한 것 — 다른 얼굴이면 눌러서 바꾸세요' : ' · 맞지 않으면 점을 옮기세요'),
+        '✓ Pivot: face (' + pct(f.x) + '%, ' + pct(f.y) + '%)' + (fl.faces.length > 1 ? ' · best of ' + fl.faces.length + ' faces — click another face to switch' : ' · drag the dot if it is off')), 'ok');
     } finally { btnFace.classList.remove('busy'); }
   }
 
@@ -2392,9 +2457,179 @@
       }
       var name = kind === 'black' ? '검은 화면' : '조정 레이어';
       if (!r.done) return status(name + '을(를) 넣지 못했어요 (' + (r.fails || []).join(', ') + ')', 'warn');
-      status('✓ ' + name + ' ' + r.done + '개 · V' + r.tracks.join(', V') + (isEn() ? ' track' : ' 트랙'), 'ok');
+      status('✓ ' + name + ' ' + r.done + '개 · V' + r.tracks.join(', V') + (isEn() ? ' track' : ' 트랙') + (r.fitted ? LL(' · 시퀀스 크기(' + r.w + '×' + r.h + ')에 맞춤', ' · fitted to the sequence (' + r.w + '×' + r.h + ')') : ''), 'ok');
     } finally { btn.classList.remove('busy'); }
   }
+
+
+  /* =================== v1.7.5: 이모지 탭 ===================
+   * 텍스트 도구로 넣은 이모지는 글자색 하나로 칠해져서, 이 컴퓨터의 컬러 이모지 글꼴로 투명 PNG 를 만들어 그림으로 넣는다 */
+  var EMJ = window.MKEmoji, emGrid = document.getElementById('emGrid'), emHead = document.getElementById('emHead'), emCatsEl = document.getElementById('emCats');
+  var emSearch = document.getElementById('emSearch'), emCat = 'face', emTip = null, emWarned = false;
+  var EM_SIZE = { s: 0.14, m: 0.24, l: 0.38, full: 0.85 };
+  var EM_MOTION = { pop: 'popup', thud: 'thud', bounce: 'bouncepop', shake: 'shake' };
+  var EM_POS_KO = ['왼쪽 위', '위', '오른쪽 위', '왼쪽', '가운데', '오른쪽', '왼쪽 아래', '아래', '오른쪽 아래'];
+  var EM_POS_EN = ['Top left', 'Top', 'Top right', 'Left', 'Center', 'Right', 'Bottom left', 'Bottom', 'Bottom right'];
+  function emO() { if (!opts.em) opts.em = { size: 'm', pos: 2, face: false, motion: 'pop', len: 'clip' }; return opts.em; }
+  function emName(e) { return isEn() ? e.en : e.ko; }
+  function emCats() {
+    if (!emCatsEl || !EMJ) return;
+    emCatsEl.innerHTML = '';
+    [{ id: 'fav', ko: '★', en: '★' }, { id: 'recent', ko: '최근', en: 'Recent' }].concat(EMJ.CATS).forEach(function (c) {
+      var b = document.createElement('button'); b.textContent = isEn() ? c.en : c.ko; b.className = emCat === c.id && !emSearch.value.trim() ? 'on' : '';
+      b.addEventListener('click', function () { emCat = c.id; emSearch.value = ''; emSearch.parentNode.classList.remove('has'); emRender(); });
+      emCatsEl.appendChild(b);
+    });
+  }
+  function emRender() {
+    if (!emGrid || !EMJ) return;
+    emCats();
+    var q = emSearch.value.trim(), list, head;
+    if (q) { list = EMJ.search(q); head = LL('"' + q + '" · ' + list.length + '개', '"' + q + '" · ' + list.length); }
+    else if (emCat === 'fav') { list = (S.emFavs || []).map(EMJ.get).filter(Boolean); head = LL('★ 즐겨찾기 · ' + list.length + '개', '★ Favorites · ' + list.length); }
+    else if (emCat === 'recent') { list = (S.emRecent || []).map(EMJ.get).filter(Boolean); head = LL('최근 · ' + list.length + '개', 'Recent · ' + list.length); }
+    else { list = EMJ.byCat(emCat); var cc = EMJ.CATS.filter(function (c) { return c.id === emCat; })[0]; head = (isEn() ? cc.en : cc.ko) + ' · ' + list.length + (isEn() ? '' : '개'); }
+    emHead.textContent = head;
+    emGrid.innerHTML = '';
+    if (!list.length) {
+      var p = document.createElement('p'); p.className = 'note';
+      p.textContent = emCat === 'fav' && !q ? LL('이모지를 우클릭하면 ★ 즐겨찾기에 들어가요', 'Right-click an emoji to add it to ★ favorites') : emCat === 'recent' && !q ? LL('아직 넣은 이모지가 없어요', 'No emoji inserted yet') : LL('찾는 이모지가 없어요', 'No matching emoji');
+      emGrid.appendChild(p); return;
+    }
+    var favs = S.emFavs || [];
+    list.slice(0, 600).forEach(function (e) {
+      var b = document.createElement('button'); b.className = 'em noTr' + (favs.indexOf(e.c) >= 0 ? ' fav' : ''); b.textContent = e.c;
+      b.title = emName(e) + (isEn() ? '' : ' · ' + e.en) + LL('\n클릭: 넣기 · 우클릭: ★ 즐겨찾기', '\nClick: insert · Right-click: ★ favorite');
+      b.addEventListener('click', function () { insertEmoji(e, b); });
+      b.addEventListener('contextmenu', function (ev) { ev.preventDefault(); emToggleFav(e.c); });
+      b.addEventListener('mouseenter', function () { emTipShow(b, e); });
+      b.addEventListener('mouseleave', emTipHide);
+      emGrid.appendChild(b);
+    });
+  }
+  function emToggleFav(ch) {
+    S.emFavs = (S.emFavs || []).slice();
+    var i = S.emFavs.indexOf(ch);
+    if (i >= 0) S.emFavs.splice(i, 1); else S.emFavs.unshift(ch);
+    save(); emRender();
+    status(i >= 0 ? LL('★ 즐겨찾기에서 뺐어요', 'Removed from ★ favorites') : LL('✓ ★ 즐겨찾기에 넣었어요', '✓ Added to ★ favorites'), 'ok');
+  }
+  function emTipShow(b, e) {
+    if (!emTip) { emTip = document.createElement('div'); emTip.className = 'emTip'; emTip.innerHTML = '<div class="big noTr"></div><b class="noTr"></b><small></small>'; document.body.appendChild(emTip); }
+    emTip.querySelector('.big').textContent = e.c; emTip.querySelector('b').textContent = emName(e);
+    emTip.querySelector('small').textContent = (isEn() ? '' : e.en + ' · ') + LL('클릭: 넣기 · 우클릭: ★', 'Click: insert · Right-click: ★');
+    emTip.classList.add('show');
+    var r = b.getBoundingClientRect(), tw = 150, th = emTip.offsetHeight;
+    var x = Math.max(4, Math.min(window.innerWidth - tw - 4, r.left + r.width / 2 - tw / 2)), y = r.bottom + 6;
+    if (y + th > window.innerHeight - 4) y = Math.max(4, r.top - th - 6);
+    emTip.style.left = x + 'px'; emTip.style.top = y + 'px';
+  }
+  function emTipHide() { if (emTip) emTip.classList.remove('show'); }
+  /* 이모지 → 투명 PNG (이 컴퓨터의 컬러 이모지 글꼴). 같은 이모지는 한 번만 만든다 */
+  async function emojiPng(ch) {
+    var p = await rawCall('mk_paths');
+    if (!p.ok) return null;
+    var N = 512, path = p.dir.replace(/\\/g, '/') + '/mmk_emoji_' + EMJ.code(ch) + '_' + N + 'x' + N + '.png';
+    var CF = window.cep, mono = false;
+    try {
+      var st = CF && CF.fs && CF.fs.stat ? CF.fs.stat(path) : { err: 1 };
+      if (st && st.err === 0) return { path: path, size: N, mono: false };
+      var c = document.createElement('canvas'); c.width = c.height = N;
+      var g = c.getContext('2d');
+      g.font = Math.round(N * 0.78) + 'px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Symbol", sans-serif';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(ch, N / 2, N / 2);
+      /* 실제 그려진 범위를 찾아 가운데로 다시 놓기 + 색이 있는지 확인 */
+      var d = g.getImageData(0, 0, N, N).data, x0 = N, y0 = N, x1 = -1, y1 = -1, colored = 0, opaque = 0;
+      for (var y = 0; y < N; y += 1) for (var x = 0; x < N; x += 1) {
+        var k = (y * N + x) * 4; if (d[k + 3] < 8) continue;
+        opaque++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+        if ((x & 3) === 0 && (y & 3) === 0 && Math.max(d[k], d[k + 1], d[k + 2]) - Math.min(d[k], d[k + 1], d[k + 2]) > 40) colored++;
+      }
+      if (x1 < 0) return null;
+      mono = colored < 3;
+      var bw = x1 - x0 + 1, bh = y1 - y0 + 1, sc = (N * 0.92) / Math.max(bw, bh);
+      var c2 = document.createElement('canvas'); c2.width = c2.height = N;
+      c2.getContext('2d').drawImage(c, x0, y0, bw, bh, (N - bw * sc) / 2, (N - bh * sc) / 2, bw * sc, bh * sc);
+      if (CF && CF.fs && CF.fs.writeFile) CF.fs.writeFile(path, c2.toDataURL('image/png').split(',')[1], CF.encoding ? CF.encoding.Base64 : 'Base64');
+    } catch (e) { return null; }
+    return { path: path, size: N, mono: mono };
+  }
+  /* 9칸 위치 → 화면 좌표(px). 얼굴이 있으면 얼굴 오른쪽 위 */
+  function emPlace(W, H, px, face) {
+    var m = Math.min(W, H) * 0.05, half = px / 2, x, y;
+    if (face) {
+      var fs = face.s * H;
+      x = face.x * W + fs * 0.62 + half * 0.6; y = face.y * H - fs * 0.5 - half * 0.2;
+      if (x + half > W - m) x = face.x * W - fs * 0.62 - half * 0.6;   /* 오른쪽에 자리가 없으면 왼쪽 */
+    } else {
+      var i = emO().pos, col = i % 3, row = Math.floor(i / 3);
+      x = col === 0 ? m + half : col === 2 ? W - m - half : W / 2;
+      y = row === 0 ? m + half : row === 2 ? H - m - half : H / 2;
+    }
+    return [Math.max(half, Math.min(W - half, x)) / W, Math.max(half, Math.min(H - half, y)) / H];
+  }
+  async function insertEmoji(e, el) {
+    if (busy || !EMJ) return;
+    busy = true; el.classList.add('busy'); emTipHide();
+    try {
+      await undoGroup(LL('이모지 ', 'Emoji ') + e.c, async function () {
+        var o = emO(), ctx = await getCtx(true);
+        if (!ctx.ok) return status(errText(ctx), 'err');
+        status(LL('이모지 그림을 만드는 중…', 'Making the emoji image…'));
+        var png = await emojiPng(e.c);
+        if (!png) return status(LL('이모지 그림을 만들지 못했어요 (이 컴퓨터 글꼴에 없는 이모지일 수 있어요)', 'Could not draw this emoji (the font on this computer may not have it)'), 'err');
+        var face = null;
+        if (o.face) {
+          status(LL('얼굴을 찾는 중…', 'Finding the face…'));
+          var gr = await call('mk_grabFrame', {});
+          face = gr.ok ? await faceIn(gr.path) : null;
+          call('mk_cleanTmp');
+        }
+        var r = await call('mk_insertLayer', { kind: 'image', png: png.path, dur: 3, playhead: o.len === 'ph' || !ctx.clips.length, fit: false });
+        if (!r.ok) return status(r.err === 'import' ? LL('이모지 그림을 가져오지 못했어요 → "진단 정보 복사"를 눌러 알려주세요', 'Could not import the emoji image → press "Copy diagnostics" and send it') : errText(r), 'err');
+        if (!r.done) return status(LL('이모지를 넣지 못했어요 (' + (r.fails || []).join(', ') + ')', 'Could not insert the emoji (' + (r.fails || []).join(', ') + ')'), 'warn');
+        var W = r.w, H = r.h, px = Math.min(W, H) * EM_SIZE[o.size || 'm'], pos = emPlace(W, H, px, face), items = [], plans = [];
+        r.created.forEach(function (cr) { items.push({ t: cr.t, c: cr.c, scale: px / png.size * 100, pos: pos, crop: null }); });
+        await call('mk_layout', { items: items });
+        var pid = EM_MOTION[o.motion];
+        if (pid) {
+          r.created.forEach(function (cr) {
+            var clip = { t: cr.t, c: cr.c, id: cr.id, name: cr.name, text: '', below: -1, start: cr.start, end: cr.end, inPoint: cr.inPoint, speed: 1 };
+            plans = plans.concat(planFor(pid, ctx, clip, [0.5, 0.5]));
+          });
+          if (plans.length) await call('mk_apply', plans);
+        }
+        S.emRecent = [e.c].concat((S.emRecent || []).filter(function (x) { return x !== e.c; })).slice(0, 32); save();
+        if (emCat === 'recent' && !emSearch.value.trim()) emRender();
+        var msg = '✓ ' + e.c + ' ' + emName(e) + ' · V' + r.tracks.join(', V') + (pid ? ' · ' + (el.ownerDocument.getElementById('emMotion').querySelector('.on') || {}).textContent : '') + (face ? LL(' · 얼굴 옆', ' · next to the face') : o.face ? LL(' · 얼굴을 못 찾아 정한 위치에', ' · no face found, used the set position') : '');
+        if (png.mono && !emWarned) { emWarned = true; return status(msg + LL(' · 이 컴퓨터의 패널에서는 이모지가 흑백으로 그려졌어요 (윈도우 10 이상·최신 프리미어에서 컬러)', ' · this computer drew the emoji in black and white'), 'warn'); }
+        status(msg, 'ok');
+      });
+    } finally { busy = false; el.classList.remove('busy'); }
+  }
+  function paintEmPos() {
+    var g = document.getElementById('emPos'); if (!g) return;
+    g.querySelectorAll('button').forEach(function (b, i) { b.classList.toggle('on', !emO().face && emO().pos === i); });
+    document.getElementById('emPosLbl').textContent = emO().face ? LL('얼굴 옆 (없으면 ', 'Next to the face (else ') + (isEn() ? EM_POS_EN : EM_POS_KO)[emO().pos] + ')' : (isEn() ? EM_POS_EN : EM_POS_KO)[emO().pos];
+    document.getElementById('emFace').classList.toggle('on', !!emO().face);
+  }
+  if (emGrid && EMJ) {
+    var emPosEl = document.getElementById('emPos');
+    for (var ei = 0; ei < 9; ei++) (function (i) {
+      var b = document.createElement('button'); b.title = EM_POS_KO[i];
+      b.addEventListener('click', function () { emO().pos = i; emO().face = false; paintEmPos(); save(); });
+      emPosEl.appendChild(b);
+    })(ei);
+    document.getElementById('emFace').addEventListener('click', function () { emO().face = !emO().face; paintEmPos(); save(); });
+    seg(document.getElementById('emSize'), null, null, function () { return emO().size; }, function (v) { emO().size = v; });
+    seg(document.getElementById('emMotion'), null, null, function () { return emO().motion; }, function (v) { emO().motion = v; });
+    seg(document.getElementById('emLen'), null, null, function () { return emO().len; }, function (v) { emO().len = v; });
+    emSearch.addEventListener('input', function () { emSearch.parentNode.classList.toggle('has', !!emSearch.value); emRender(); });
+    emSearch.addEventListener('keydown', function (e) { if (e.key === 'Escape') { emSearch.value = ''; emSearch.parentNode.classList.remove('has'); emRender(); } });
+    document.getElementById('emSearchX').addEventListener('click', function () { emSearch.value = ''; emSearch.parentNode.classList.remove('has'); emRender(); emSearch.focus(); });
+  }
+  function openEmojiTab() { if (S.emRecent && S.emRecent.length && emCat === 'face' && !emSearch.value) emCat = 'recent'; paintEmPos(); emRender(); }
 
   /* ---------- 트래킹 탭 ----------
    * 화면을 프레임마다 캡처해서 패널 안에서 직접 추적(MKTrack, engine.js 맨 아래)하고,
@@ -2810,6 +3045,7 @@
     segs.forEach(function (p) { p(); });
     paintBlur(); paintTyping(); paintKinds(); paintKindsRow(); paintDur(); paintPivot(); paintAutoArea(); paintColors(); paintTip();
     renderCats(); renderGrid(); renderCurveChips(); drawCurve(); renderFxFavs(); renderFxList();
+    try { paintEmPos(); var te = document.getElementById('tab-emoji'); if (te && te.classList.contains('on')) emRender(); } catch (e) {}
     wasMini = null; layout();
   }
   /* ---------- 언어 버튼 ---------- */
